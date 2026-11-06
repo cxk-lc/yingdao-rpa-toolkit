@@ -99,6 +99,22 @@ def test_repr_never_exposes_secret():
     assert "super-secret-value" not in repr(config)
 
 
+def test_enterprise_suffix_is_normalized(tmp_path, isolated_user_config):
+    write(tmp_path / ".yingdao" / "config.json", {"enterpriseSuffix": "csqy1"})
+
+    config = load_config(None, env={}, cwd=tmp_path)
+
+    assert config.enterprise_suffix == "@csqy1"
+    assert config.public_view()["enterprise_suffix"] == "@csqy1"
+
+
+def test_invalid_enterprise_suffix_is_rejected(tmp_path, isolated_user_config):
+    write(tmp_path / ".yingdao" / "config.json", {"enterpriseSuffix": "@"})
+
+    with pytest.raises(ConfigError, match="enterpriseSuffix"):
+        load_config(None, env={}, cwd=tmp_path)
+
+
 def test_placeholder_credentials_are_rejected():
     config = Config(
         access_key_id="<在此填写 accessKeyId>",

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from .accounts import normalize_suffix
 from .errors import CONFIG_HINT, ConfigError
 from .utils import mask_secret
 
@@ -32,6 +33,7 @@ CONFIG_TEMPLATE: dict[str, Any] = {
     "maxPollSeconds": 1800,
     "defaultAccountName": "",
     "defaultRobotClientGroupUuid": "",
+    "enterpriseSuffix": "",
 }
 
 
@@ -45,6 +47,7 @@ class Config:
     max_poll_seconds: int = 1800
     default_account_name: str = ""
     default_robot_client_group_uuid: str = ""
+    enterprise_suffix: str = ""
     source: str = ""
     config_path: str = ""
 
@@ -65,6 +68,7 @@ class Config:
             "max_poll_seconds": self.max_poll_seconds,
             "default_account_name": self.default_account_name,
             "default_robot_client_group_uuid": self.default_robot_client_group_uuid,
+            "enterprise_suffix": self.enterprise_suffix,
             "source": self.source,
             "config_path": self.config_path,
         }
@@ -109,6 +113,7 @@ def _env_layer(env: Mapping[str, str]) -> dict[str, Any]:
         "maxPollSeconds": env.get("YD_MAX_POLL_SECONDS"),
         "defaultAccountName": env.get("YD_DEFAULT_ACCOUNT_NAME"),
         "defaultRobotClientGroupUuid": env.get("YD_DEFAULT_ROBOT_GROUP_UUID"),
+        "enterpriseSuffix": env.get("YD_ENTERPRISE_SUFFIX"),
     }
 
 
@@ -197,6 +202,15 @@ def load_config(
     poll_interval = _positive_int(pick("pollIntervalSeconds", 30)[0], "pollIntervalSeconds", 5)
     max_poll = _positive_int(pick("maxPollSeconds", 1800)[0], "maxPollSeconds", 30)
 
+    raw_suffix = str(pick("enterpriseSuffix", "")[0] or "").strip()
+    try:
+        enterprise_suffix = normalize_suffix(raw_suffix)
+    except ValueError as exc:
+        raise ConfigError(
+            f"enterpriseSuffix 配置非法：{exc}",
+            hint="只填企业标识或带 @ 的标识，例如 @csqy1（写 csqy1 会自动补 @）。",
+        ) from exc
+
     config_path = ""
     if project_path is not None and project_path.is_file():
         config_path = str(project_path)
@@ -214,6 +228,7 @@ def load_config(
         default_robot_client_group_uuid=str(
             pick("defaultRobotClientGroupUuid", "")[0] or ""
         ).strip(),
+        enterprise_suffix=enterprise_suffix,
         source=ak_source or "",
         config_path=config_path,
     )

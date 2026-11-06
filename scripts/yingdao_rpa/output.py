@@ -91,6 +91,7 @@ def render_text(payload: dict[str, Any]) -> str:
             "max_poll_seconds",
             "default_account_name",
             "default_robot_client_group_uuid",
+            "enterprise_suffix",
             "source",
             "config_path",
         ]
@@ -109,6 +110,22 @@ def render_text(payload: dict[str, Any]) -> str:
     if command == "auth token":
         # 该命令的 purpose 就是输出可直接传递的 token 原文，便于 shell 管道消费
         return str(data.get("access_token") or "")
+
+    if command == "robot info":
+        robot = data.get("robot") or {}
+        requested = data.get("requested") or {}
+        parts = [
+            f"[{robot.get('statusName') or robot.get('status') or '-'}]",
+            str(robot.get("robotClientName") or requested.get("accountName") or "-"),
+            f"ip={robot.get('clientIp') or '-'}",
+            f"uuid={robot.get('robotClientUuid') or '-'}",
+            f"备注={robot.get('description') or '-'}",
+        ]
+        if robot.get("remark"):
+            parts.append(f"remark={robot['remark']}")
+        if requested.get("suffixApplied"):
+            parts.append("（已按配置补全企业后缀）")
+        return "  ".join(parts)
 
     if command.startswith("job"):
         job = data.get("job") or {}

@@ -6,5 +6,6 @@
   "pollIntervalSeconds": 30,
   "maxPollSeconds": 1800,
   "defaultAccountName": "",
-  "defaultRobotClientGroupUuid": ""
+  "defaultRobotClientGroupUuid": "",
+  "enterpriseSuffix": ""
 }
