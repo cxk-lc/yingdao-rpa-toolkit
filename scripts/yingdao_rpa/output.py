@@ -145,8 +145,10 @@ def render_text(payload: dict[str, Any]) -> str:
         ]
         if robot.get("remark"):
             parts.append(f"remark={robot['remark']}")
-        if requested.get("suffixApplied"):
-            parts.append("（已按配置补全企业后缀）")
+        if requested.get("resolvedBy") == "account":
+            parts.append("（已通过企业账号补全）")
+        elif requested.get("resolvedBy") == "suffix":
+            parts.append("（已补全企业后缀）")
         return "  ".join(parts)
 
     if command.startswith("job"):

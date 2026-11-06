@@ -8,7 +8,12 @@ from types import SimpleNamespace
 import pytest
 
 from yingdao_rpa.client import ApiMeta
-from yingdao_rpa.commands.account import build_query, run_list
+from yingdao_rpa.commands.account import (
+    build_query,
+    match_accounts,
+    query_accounts,
+    run_list,
+)
 from yingdao_rpa.config import Config
 from yingdao_rpa.errors import ParamError
 from yingdao_rpa.runtime import Runtime
@@ -205,3 +210,46 @@ def test_dry_run_shows_query_without_request():
     assert request["query"]["accountKeyword"] == "张"
     assert request["query"]["accountTypes"] == ["basic"]
     assert request["query"]["page"] == 2
+
+
+class PagedClient:
+    def __init__(self, payloads):
+        self.payloads = list(payloads)
+        self.calls: list[dict] = []
+
+    def request(self, method, path, query=None, **kwargs):
+        self.calls.append({"method": method, "path": path, "query": dict(query or {})})
+        return self.payloads.pop(0)
+
+
+def test_query_accounts_collects_pages():
+    client = PagedClient(
+        [
+            page([ACCOUNT_A], page_no=1, pages=2, size=1, total=2),
+            page([ACCOUNT_B], page_no=2, pages=2, size=1, total=2),
+        ]
+    )
+
+    accounts = query_accounts(client, "ceshi", page_size=1, max_pages=3)
+
+    assert len(accounts) == 2
+    assert [call["query"]["page"] for call in client.calls] == [1, 2]
+
+
+def test_match_accounts_prefers_login_local_part():
+    accounts = [
+        {"loginAccount": "other@x", "name": "ceshi1"},
+        {"loginAccount": "ceshi1@y", "name": "张三"},
+    ]
+
+    matched = match_accounts(accounts, "ceshi1")
+
+    assert [item["loginAccount"] for item in matched] == ["ceshi1@y"]
+
+
+def test_match_accounts_falls_back_to_name():
+    accounts = [{"loginAccount": "robot-01@x", "name": "ceshi1"}]
+
+    matched = match_accounts(accounts, "ceshi1")
+
+    assert [item["loginAccount"] for item in matched] == ["robot-01@x"]

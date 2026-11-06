@@ -236,15 +236,18 @@ def test_access_token_env_is_used_when_flag_absent(cli_workspace, capsys, monkey
     assert captured["token"] == "env-token"
 
 
-def test_robot_info_without_suffix_returns_2(cli_workspace, capsys, monkeypatch):
+def test_robot_info_without_suffix_previews_account_lookup(cli_workspace, capsys, monkeypatch):
     monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
     monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
 
     code, payload, _ = run_json(capsys, ["robot", "info", "--name", "ceshi1", "--dry-run"])
 
-    assert code == 2
-    assert payload["error"]["type"] == "ParamError"
-    assert "缺少企业账号后缀" in payload["error"]["message"]
+    assert code == 0
+    data = payload["data"]
+    assert data["resolution"] == "account-lookup"
+    assert data["request"]["url"].endswith("/oapi/rpa/user/v1/list")
+    assert data["request"]["query"]["accountKeyword"] == "ceshi1"
+    assert data["followup"]["body"] == {"accountName": "<loginAccount>"}
 
 
 def test_robot_info_dry_run_applies_suffix(cli_workspace, capsys, monkeypatch):

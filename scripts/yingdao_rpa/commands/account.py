@@ -15,6 +15,8 @@ ACCOUNT_TYPES = ("basic", "senior")
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 DEFAULT_MAX_PAGES = 50
+LOOKUP_PAGE_SIZE = 100
+LOOKUP_MAX_PAGES = 3
 
 
 def register(subparsers: argparse._SubParsersAction, common: argparse.ArgumentParser) -> None:
@@ -126,6 +128,71 @@ def _to_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def query_accounts(
+    client: Any,
+    keyword: str,
+    *,
+    page_size: int = LOOKUP_PAGE_SIZE,
+    max_pages: int = LOOKUP_MAX_PAGES,
+) -> list[dict[str, Any]]:
+    """按关键词查询企业账号，供其它命令做 loginAccount 解析。
+
+    只读少量页（默认最多 3 页 × 100 条），避免为了补全一个名称拉全量。
+    """
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return []
+
+    items: list[dict[str, Any]] = []
+    page = 1
+    while page <= max_pages:
+        payload = client.request(
+            "GET",
+            ACCOUNT_LIST_PATH,
+            query={"accountKeyword": keyword, "page": page, "size": page_size},
+        )
+        rows = _rows(payload)
+        items.extend(rows)
+
+        total_pages = _to_int(_page_info(payload).get("pages"))
+        if total_pages is not None:
+            if page >= total_pages:
+                break
+        elif len(rows) < page_size:
+            break
+        page += 1
+    return items
+
+
+def match_accounts(accounts: list[dict[str, Any]], keyword: str) -> list[dict[str, Any]]:
+    """从账号列表里挑出与关键词匹配的账号。
+
+    优先匹配 `loginAccount` 的 @ 前缀（忽略大小写），没有再匹配 `name`。
+    """
+    key = (keyword or "").strip().casefold()
+    if not key:
+        return []
+
+    login_matches: list[dict[str, Any]] = []
+    name_matches: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for account in accounts:
+        login = str(account.get("loginAccount") or "").strip()
+        if login:
+            local = login.partition("@")[0].strip().casefold()
+            if local == key:
+                if login not in seen:
+                    login_matches.append(account)
+                    seen.add(login)
+                continue
+        if str(account.get("name") or "").strip().casefold() == key and login not in seen:
+            name_matches.append(account)
+            seen.add(login)
+
+    return login_matches or name_matches
 
 
 def _result(items: list[dict[str, Any]], page: dict[str, Any], query: dict[str, Any]) -> dict[str, Any]:
