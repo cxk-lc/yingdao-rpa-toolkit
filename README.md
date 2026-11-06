@@ -29,6 +29,7 @@
 │       ├── cli.py           # 解析参数、装配依赖、异常兜底
 │       ├── commands/        # 每个子命令一个模块
 │       ├── client.py        # 影刀 API 封装（token/重试/错误分类）
+│       ├── accounts.py      # 企业版账号后缀补全
 │       ├── transport.py     # HTTP 传输层
 │       ├── config.py        # 四层配置合并与校验
 │       ├── errors.py        # 异常体系 ↔ 退出码
@@ -36,6 +37,7 @@
 │       └── output.py        # stdout JSON 契约
 ├── references/
 │   ├── auth.md              # 配置与鉴权排查
+│   ├── robot-info.md        # 机器人状态与账号后缀
 │   └── output-contract.md   # JSON 结构与退出码
 └── tests/                   # 离线 pytest 用例
 ```
@@ -62,6 +64,9 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10 --dry-run
 
+# 5.1 查询机器人状态（名称缺 @企业后缀 时自动补全）
+"$PY" scripts/yd.py robot info --name ceshi1
+
 # 6. 真实启动并拿 jobUuid（也可不传 token，让命令自行用凭据换取）
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10
@@ -79,6 +84,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ```
 
 - 凭据也可用 `YD_ACCESS_KEY_ID` / `YD_ACCESS_KEY_SECRET` 注入，适合 CI 或临时会话。
+- 企业版机器人账号后缀用 `enterpriseSuffix`（如 `@csqy1`，写 `csqy1` 也会自动补 `@`）；`robot info --name` 缺少后缀时自动补全。
 - `.env`、`.yingdao/` 已在 `.gitignore` 中，不会被提交。
 - 私有化部署只改 `baseUrl` 为专属域名，不要带 `/oapi` 路径。
 
@@ -90,6 +96,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | `config show` | 查看生效配置（脱敏） |
 | `auth check` | 验证凭据，输出脱敏 token 与有效期 |
 | `auth token` | 获取完整 accessToken，供其它命令直接传入；不写文件 |
+| `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]` | 查询单台机器人状态；名称缺后缀时自动补全 |
 | `job start --app-id ... (--account-name \| --robot-group-uuid) ...` | 启动一次应用运行 |
 | `job query --job-uuid ... [--wait]` | 查询运行状态与输出参数 |
 
@@ -136,4 +143,4 @@ cp -r "D:/Documents/WorkBuddy/影刀RPA工具包" "C:/Users/admin/.workbuddy/ski
 
 ## 当前边界
 
-已实现：配置管理、`auth check` / `auth token`、`job start` / `job query` 的触发与查询闭环。机器人/应用/任务列表、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。
+已实现：配置管理、`auth check` / `auth token`、`robot info`、`job start` / `job query` 的触发与查询闭环。机器人/应用/任务**列表**、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。

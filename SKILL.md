@@ -19,6 +19,7 @@ metadata:
 - 用户要求用影刀/ShadowBot 执行某个应用，并给出了应用与机器人（或机器人分组）。
 - 需要验证 `accessKeyId / accessKeySecret` 是否可用。
 - 需要先取一个 accessToken，再把它直接传给后续命令或其它工具（token 不落盘）。
+- 需要查询某台机器人的在线/空闲状态、IP 与备注（`robot info`）。
 - 需要预览一次启动请求的 method / URL / body（`--dry-run`），先核对再提交。
 - 已经拿到 `jobUuid`，需要查状态、输出参数、失败原因或截图地址。
 - 需要轮询直到任务进入终态（`--wait`）。
@@ -51,6 +52,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 看当前生效配置（密钥脱敏） | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" config show` |
 | 验证凭据、token 是否有效 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth check` |
 | 获取 token 并传给后续命令 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth token`，再把 `data.access_token` 传给 `--access-token` |
+| 查某台机器人是否在线/空闲 | `references/robot-info.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name <名称>` |
 | 触发一次应用运行 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job start ...` |
 | 查某次运行的状态/输出/失败原因 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid ...` |
 | 字段含义、退出码、JSON 结构 | `references/output-contract.md` | — |
@@ -73,17 +75,21 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 #   TOKEN=$("$PY" ... auth token --format text)
 #   YD_ACCESS_TOKEN="$TOKEN" "$PY" ... job query --job-uuid <uuid>
 
-# 3. 先干跑核对请求体（不发送请求）
+# 3. 可选：确认目标机器人在线且空闲
+"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name ceshi1
+# 名称缺少 @企业后缀 时：优先用配置 enterpriseSuffix，或本次 --suffix @csqy1
+
+# 4. 先干跑核对请求体（不发送请求）
 "$PY" "$SKILL_DIR/scripts/yd.py" job start \
   --app-id <appId> --account-name <机器人名称> \
   --param 月份=2026-10 --param 页数=10:int --dry-run
 
-# 4. 确认后真实提交，拿 jobUuid
+# 5. 确认后真实提交，拿 jobUuid
 "$PY" "$SKILL_DIR/scripts/yd.py" job start \
   --app-id <appId> --account-name <机器人名称> \
   --param 月份=2026-10
 
-# 5. 查结果：默认单次查询；加 --wait 轮询到终态
+# 6. 查结果：默认单次查询；加 --wait 轮询到终态
 "$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid <jobUuid>
 "$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid <jobUuid> --wait --interval 30 --max-wait 1800
 ```
@@ -99,15 +105,18 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `--idempotent-uuid`：不超过 36 位；网络超时重发时避免重复启动。
 - `--priority` / `--wait-timeout-seconds` / `--run-timeout` / `--execute-scope`：透传接口同名字段。
 - `--access-token`：直接使用已有 token（优先于凭据）；也可用 `YD_ACCESS_TOKEN` 传入。token 只在内存，不写文件。
+- `robot info --name`：机器人账号名；不带 `@企业标识` 时，用 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有则本地拦截。
+- `robot info --uuid`：机器人 uuid；切换调度模式后会变化，通常优先用 `--name`。
 
 ## 硬规则（必须遵守）
 
 1. **不得编造标识**：`appId`、`robotClientName`、`jobUuid` 必须来自用户明确提供或上游查询结果，不要猜测。
-2. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
-3. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
-4. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
-5. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
-6. **未实现的能力不要假装有**：本版没有列表查询、重试、停止、日志接口，遇到这类需求直接说明并给出替代路径。
+2. **机器人名称要完整**：企业版账号形如 `ceshi1@csqy1`。用户只给前缀时，先用 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有就停下来让用户补充，**不要猜企业后缀**。
+3. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
+4. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
+5. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
+6. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
+7. **未实现的能力不要假装有**：本版没有列表查询、重试、停止、日志接口，遇到这类需求直接说明并给出替代路径。
 
 ## 输出契约与退出码
 
@@ -131,6 +140,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ## 关键事实与易错点
 
 - `job start` 的 `robotUuid` 是 **应用 uuid**（appId），不是机器人 uuid。
+- `robot info` 的 `accountName` 必须是完整企业账号；`status` 为 `connected/idle/allocated/running/offline`，`online` 与 `idle` 是工具补充的派生字段。
 - `accountName` 与 `robotClientGroupUuid` 互斥；两者都缺时任务不会执行，只会排队到超时。
 - 机器人 `offline` 时派发仍可能返回成功，但任务会排队，直到 `waitTimeoutSeconds` 超时。
 - 入参总长按 8000 字符本地拦截；超限请拆批，或把长文本转成 `type=file` 的 URL。
@@ -142,7 +152,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 当前版本边界
 
-已实现：`config init/show`、`auth check`、`auth token`、`job start`、`job query`。
+已实现：`config init/show`、`auth check`、`auth token`、`robot info`、`job start`、`job query`。
 未实现（后续迭代）：机器人/应用/任务列表、`job retry/stop`、运行日志、文件上传、工作队列、回调、RPA 账号管理、HTTP 常驻服务。
 
 ## 资源索引
@@ -153,5 +163,6 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 核心库 | `scripts/yingdao_rpa/` | 排障或二次开发时阅读 |
 | 输出契约 | `references/output-contract.md` | 解析 JSON、确认退出码 |
 | 配置与鉴权 | `references/auth.md` | 配置凭据、token 失效排查 |
+| 机器人状态 | `references/robot-info.md` | 账号后缀规则、状态枚举、查不到机器人 |
 | 配置样例 | `config.example.json` | 首次配置参考 |
 | 项目文档 | `docs/product-design.md`、`docs/tech-design.md` | 了解范围与架构 |

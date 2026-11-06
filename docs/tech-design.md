@@ -18,7 +18,7 @@
 分四层，依赖方向单向向下，入口层不直接碰 `urllib`：
 
 1. **入口层**：`scripts/yd.py`（薄壳）→ `yingdao_rpa/cli.py`（解析参数、装配依赖、兜底异常）→ `yingdao_rpa/commands/*`（一个子命令一个模块，`register()` + `run()`）。
-2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。
+2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；`accounts.py` 负责机器人账号后缀补全；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。
 3. **基础设施层**：`transport.py` 只做 HTTP 往返与网络异常归一化；不判断业务成功与否。
 4. **横切层**：`config.py`（四层配置合并与校验）、`errors.py`（异常体系 ↔ 退出码）、`logging_setup.py`（分级日志与脱敏）、`output.py`（stdout JSON 契约）。
 

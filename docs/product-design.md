@@ -27,6 +27,7 @@
 | HTTP 传输与错误分类 | 超时、网络异常、429 退避、业务错误映射为统一异常 | 必须 |
 | 触发入口 | `job start`：参数解析、长度校验、dry-run、幂等 uuid | 必须 |
 | 结果查询 | `job query`：单次查询、`--wait` 轮询至终态、终态判定 | 必须 |
+| 机器人状态查询 | `robot info`：按名称/ uuid 查询状态、IP、备注；名称缺企业后缀时按配置补全 | 必须 |
 | 日志 | stderr 分级日志（`--debug` / `--log-file`），不污染 stdout JSON | 必须 |
 | 统一输出契约 | stdout 永远一条 JSON；退出码 0/1/2/3/4/5/6 语义固定 | 必须 |
 | 技能说明 | `SKILL.md` 意图路由、硬规则、资源索引 | 必须 |
@@ -52,6 +53,7 @@
 - **token 不落盘**：不得写 token 缓存文件；跨命令只通过 `--access-token` 或 `YD_ACCESS_TOKEN` 传递，失效时报退出码 3 并提示重新获取。
 - Windows 控制台默认编码不是 UTF-8：入口统一 `reconfigure(encoding="utf-8")`。
 - 该工具包不做"猜标识"：`appId`、`jobUuid`、`robotClientName` 必须来自查询结果或用户明确提供。
+- 企业版机器人账号必须带 `@企业标识`：名称缺少后缀时，按 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有则本地拦截并提示，不猜后缀。
 
 ## 6. 验收要点
 
@@ -62,6 +64,8 @@
 - [ ] `auth token` 输出完整 token，且不产生任何缓存文件；`--save` 被拒绝。
 - [ ] 用 `--access-token` 传入上一步 token 后，`job query` 不再换取新 token；token 失效时退出码 3。
 - [ ] `job start --dry-run` 不发送请求，输出 method/path/body 预览。
+- [ ] `robot info --name <前缀>` 能按配置后缀补全；传完整名称时原样使用；后缀缺失时退出码 2 并提示补充。
+- [ ] `robot info` 能输出状态、`statusName`、`online`、`idle`、IP 与备注。
 - [ ] `job query --job-uuid <uuid>` 能输出状态；终态非 `finish` 时退出码 5。
 - [ ] 任意错误场景下，stdout 仍是一条可解析的 JSON。
 - [ ] `pytest` 全绿，且不依赖真实网络与真实凭据。

@@ -24,6 +24,7 @@
 | `maxPollSeconds` | `YD_MAX_POLL_SECONDS` | 单次 `--wait` 最长等待，默认 1800 |
 | `defaultAccountName` | `YD_DEFAULT_ACCOUNT_NAME` | 默认机器人名称 |
 | `defaultRobotClientGroupUuid` | `YD_DEFAULT_ROBOT_GROUP_UUID` | 默认机器人分组 uuid（与上一项互斥） |
+| `enterpriseSuffix` | `YD_ENTERPRISE_SUFFIX` | 企业版账号后缀，如 `@csqy1`；写 `csqy1` 会自动补 `@` |
 
 生成模板：
 
