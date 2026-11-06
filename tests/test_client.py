@@ -198,3 +198,61 @@ def test_preview_masks_secret_query(fake_config):
 
     assert preview["query"]["accessKeySecret"] == "***"
     assert preview["query"]["id"] == "1"
+
+
+def test_preview_masks_access_key_id_by_default(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview(
+        "GET",
+        "/token",
+        query={"accessKeyId": "9wncDaPR2gkErHd1@platform", "accessKeySecret": "sk-live-value"},
+    )
+
+    assert preview["query"]["accessKeyId"] == "9wnc****form"
+    assert preview["query"]["accessKeySecret"] == "***"
+
+
+def test_preview_masks_nested_body(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview(
+        "POST",
+        "/job",
+        body={
+            "accountName": "robot",
+            "auth": {"accessKeyId": "ak-12345678", "accessKeySecret": "sk", "accessToken": "tok"},
+            "items": [{"password": "p"}],
+        },
+    )
+
+    assert preview["body"]["accountName"] == "robot"
+    assert preview["body"]["auth"]["accessKeyId"] == "ak-1****5678"
+    assert preview["body"]["auth"]["accessKeySecret"] == "***"
+    assert preview["body"]["auth"]["accessToken"] == "***"
+    assert preview["body"]["items"][0]["password"] == "***"
+
+
+def test_preview_show_secrets_returns_raw_values(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview(
+        "GET",
+        "/token",
+        query={"accessKeyId": "9wncDaPR2gkErHd1@platform", "accessKeySecret": "sk-live-value"},
+        body={"accessToken": "tok"},
+        show_secrets=True,
+    )
+
+    assert preview["query"]["accessKeyId"] == "9wncDaPR2gkErHd1@platform"
+    assert preview["query"]["accessKeySecret"] == "sk-live-value"
+    assert preview["body"]["accessToken"] == "tok"
+
+
+def test_preview_without_query_keeps_null_body(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview("POST", "/job", body=None)
+
+    assert preview["query"] == {}
+    assert preview["body"] is None

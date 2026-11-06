@@ -105,7 +105,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 1. **不得编造标识**：`appId`、`robotClientName`、`jobUuid` 必须来自用户明确提供或上游查询结果，不要猜测。
 2. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
 3. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
-4. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。
+4. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
 5. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
 6. **未实现的能力不要假装有**：本版没有列表查询、重试、停止、日志接口，遇到这类需求直接说明并给出替代路径。
 

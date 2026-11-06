@@ -15,3 +15,4 @@ class Runtime:
     client: YingDaoClient
     dry_run: bool = False
     quiet: bool = False
+    show_secrets: bool = False

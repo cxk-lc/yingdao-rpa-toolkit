@@ -115,6 +115,31 @@ def test_job_query_requires_job_uuid(cli_workspace, capsys):
     assert payload["error"]["type"] == "ParamError"
 
 
+def test_auth_check_dry_run_masks_credentials(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "9wncDaPR2gkErHd1@platform")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk-live-value")
+
+    code, payload, _ = run_json(capsys, ["auth", "check", "--dry-run"])
+
+    query = payload["data"]["request"]["query"]
+    assert code == 0
+    assert payload["meta"]["dry_run"] is True
+    assert query["accessKeyId"] == "9wnc****form"
+    assert query["accessKeySecret"] == "***"
+
+
+def test_auth_check_dry_run_show_secrets_is_opt_in(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "9wncDaPR2gkErHd1@platform")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk-live-value")
+
+    code, payload, _ = run_json(capsys, ["auth", "check", "--dry-run", "--show-secrets"])
+
+    query = payload["data"]["request"]["query"]
+    assert code == 0
+    assert query["accessKeyId"] == "9wncDaPR2gkErHd1@platform"
+    assert query["accessKeySecret"] == "sk-live-value"
+
+
 def test_config_init_creates_template_and_refuses_second_run(cli_workspace, capsys):
     code, payload, _ = run_json(capsys, ["config", "init", "--scope", "project"])
     assert code == 0

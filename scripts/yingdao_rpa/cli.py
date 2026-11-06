@@ -81,7 +81,13 @@ def main(argv: list[str] | None = None) -> int:
         if access_token:
             logger.debug("使用调用方传入的 accessToken（仅内存，不落盘）")
         client = YingDaoClient(config, access_token=access_token)
-        runtime = Runtime(config=config, client=client, dry_run=args.dry_run, quiet=args.quiet)
+        runtime = Runtime(
+            config=config,
+            client=client,
+            dry_run=args.dry_run,
+            quiet=args.quiet,
+            show_secrets=bool(getattr(args, "show_secrets", False)),
+        )
         logger.debug("生效配置：%r", config)
 
         result: dict[str, Any] = args.handler(args, runtime) or {}

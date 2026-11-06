@@ -268,7 +268,9 @@ def run_start(args: argparse.Namespace, runtime: Runtime) -> dict:
         return {
             "data": {
                 "kind": "request_preview",
-                "request": runtime.client.preview("POST", START_PATH, body=body),
+                "request": runtime.client.preview(
+                    "POST", START_PATH, body=body, show_secrets=runtime.show_secrets
+                ),
             },
             "meta": {"base_url": runtime.config.base_url, "dry_run": True},
         }
@@ -308,7 +310,10 @@ def run_query(args: argparse.Namespace, runtime: Runtime) -> dict:
             "data": {
                 "kind": "request_preview",
                 "request": runtime.client.preview(
-                    "POST", QUERY_PATH, body={"jobUuid": args.job_uuid}
+                    "POST",
+                    QUERY_PATH,
+                    body={"jobUuid": args.job_uuid},
+                    show_secrets=runtime.show_secrets,
                 ),
             },
             "meta": {"base_url": runtime.config.base_url, "dry_run": True},

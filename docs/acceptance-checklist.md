@@ -16,6 +16,7 @@
 - [ ] `auth check` 能成功换到 token，显示 `expires_in` 与脱敏 token，`source=fetched`
 - [ ] `auth token` 输出完整 token，`data.persisted=false`，且磁盘上没有新增 token 缓存文件
 - [ ] `auth token --save token.json` 退出码 2，且文件未生成
+- [ ] `auth check --dry-run` 默认掩码：`accessKeySecret=***`、`accessKeyId` 只露首尾各 4 位；加 `--show-secrets` 才输出原文
 - [ ] `TOKEN=$(... auth token --format text)` 得到纯 token 原文；用 `--access-token "$TOKEN"` 调用 `job query` 时不再请求 token 接口
 - [ ] `job start --app-id ... --account-name ... --param 月份=2026-10 --dry-run` 的预览 body 与预期一致，且未发出真实请求
 - [ ] 去掉 `--dry-run` 后能拿到 `jobUuid`，控制台能看到对应运行记录

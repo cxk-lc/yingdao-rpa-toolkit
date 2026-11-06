@@ -25,6 +25,11 @@ def build_common() -> argparse.ArgumentParser:
     common.add_argument("--timeout", type=float, help="单次 HTTP 超时秒数，默认 30")
     common.add_argument("--format", choices=["json", "text"], default="json", help="输出格式，默认 json")
     common.add_argument("--dry-run", action="store_true", help="只输出请求预览，不发送请求")
+    common.add_argument(
+        "--show-secrets",
+        action="store_true",
+        help="预览中输出密钥原文（默认掩码；仅在明确核对密钥时使用）",
+    )
     common.add_argument("--save", help="把完整 JSON 结果另存到指定文件（auth token 禁用）")
     common.add_argument("--log-file", help="把 DEBUG 级日志追加写入指定文件")
     common.add_argument("--debug", action="store_true", help="在 stderr 输出调试日志")

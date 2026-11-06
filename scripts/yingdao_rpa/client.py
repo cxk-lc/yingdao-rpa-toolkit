@@ -26,6 +26,7 @@ from .errors import (
 )
 from .logging_setup import get_logger
 from .transport import HttpTransport, RawResponse, encode_json_body
+from .utils import sanitize_for_preview
 
 TOKEN_PATH = "/oapi/token/v2/token/create"
 MAX_429_RETRIES = 3
@@ -283,17 +284,18 @@ class YingDaoClient:
         query: dict[str, Any] | None = None,
         body: dict[str, Any] | None = None,
         need_token: bool = True,
+        show_secrets: bool = False,
     ) -> dict[str, Any]:
-        """构造请求预览（不发送），密钥字段脱敏。"""
-        safe_query = {
-            key: ("***" if "secret" in key.lower() else value)
-            for key, value in (query or {}).items()
-        }
+        """构造请求预览（不发送）。
+
+        默认对 query 与 body 递归掩码，只有调用方显式要求时才输出密钥原文，
+        避免预览结果被贴进工单或日志后泄漏凭据。
+        """
         preview: dict[str, Any] = {
             "method": method.upper(),
             "url": self.config.base_url + path,
-            "query": safe_query,
-            "body": body,
+            "query": sanitize_for_preview(query or {}, show_secrets=show_secrets),
+            "body": sanitize_for_preview(body, show_secrets=show_secrets),
         }
         if need_token:
             preview["headers"] = {"Authorization": "Bearer <accessToken>"}

@@ -58,7 +58,7 @@
 | `auth token` | `{access_token, token_type, expires_in, expires_at, source, persisted:false, base_url}` |
 | `job start` | `{kind:"job_start", jobUuid, idempotentFlag, request_id}`；加 `--wait` 时多一个 `job` |
 | `job query` | `{kind:"job", jobUuid, job}` |
-| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}` |
+| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`，其中 `query`/`body` 默认掩码 |
 
 ## 4. 退出码
 

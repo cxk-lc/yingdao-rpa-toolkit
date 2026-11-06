@@ -75,6 +75,24 @@ YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
 - 用凭据换取的 token 在业务接口返回 401 时，会自动重新获取一次并重试原请求。
 - 调用方显式传入的 token 被视为权威：401 时直接返回退出码 3，并提示重新执行 `auth token`，**不会静默替换**成凭据换取的新 token。
 
+### 3.4 预览中的密钥掩码
+
+`--dry-run` 只输出请求预览，不发真实请求，且 `query` / `body` 会递归掩码：
+
+| 字段 | 默认输出 | 说明 |
+|---|---|---|
+| `accessKeySecret`、`accessToken` 等含 `secret`/`token` 的字段 | `***` | 整体隐藏 |
+| `accessKeyId` 等含 `accesskey` 的字段 | `9wnc****form` | 保留首尾各 4 位，便于核对用的是哪把密钥 |
+| 其它字段 | 原值 | 如 `method`、`url`、`accountName`、`params` |
+
+```bash
+# 默认：掩码
+python scripts/yd.py auth check --dry-run
+
+# 仅在明确需要核对密钥原文时：显式打开，输出会包含真实凭据，勿贴到工单或日志
+python scripts/yd.py auth check --dry-run --show-secrets
+```
+
 ## 4. 常见问题
 
 | 现象 | 原因 | 处理 |
@@ -90,6 +108,7 @@ YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
 ## 5. 安全边界
 
 - 工具不会把 `accessKeySecret` 写回任何文件，也不会在 `config show` / 日志 / 异常中输出完整值。
+- `--dry-run` 预览默认掩码，`accessKeyId` 只露首尾各 4 位；`--show-secrets` 是唯一的显式放开入口。
 - `auth check` 只输出 `token_masked`（形如 `520d****c88e`）。
 - `auth token` 是唯一会输出完整 token 的命令，且明确禁止 `--save`；不要把它的输出粘进聊天、工单或日志。
 - 排查问题时可以贴 `request_id`、命令与退出码，不要贴密钥或完整 token。

@@ -43,6 +43,7 @@ def run_check(args: argparse.Namespace, runtime: Runtime) -> dict:
                 "accessKeySecret": runtime.config.access_key_secret,
             },
             need_token=False,
+            show_secrets=runtime.show_secrets,
         )
         return {
             "data": {"kind": "request_preview", "request": preview},
@@ -84,6 +85,7 @@ def run_token(args: argparse.Namespace, runtime: Runtime) -> dict:
                 "accessKeySecret": runtime.config.access_key_secret,
             },
             need_token=False,
+            show_secrets=runtime.show_secrets,
         )
         return {
             "data": {"kind": "request_preview", "request": preview},
