@@ -10,6 +10,7 @@ import pytest
 from yingdao_rpa.config import Config
 from yingdao_rpa.commands.job import (
     _parse_param,
+    _poll_settings,
     _split_failure,
     build_start_body,
     poll_job,
@@ -123,6 +124,22 @@ def test_wait_timeout_range():
 def test_idempotent_uuid_length_limit():
     with pytest.raises(ParamError, match="36"):
         build_start_body(args(idempotent_uuid="x" * 37), CONFIG)
+
+
+def test_poll_settings_use_config_defaults():
+    config = Config(poll_interval_seconds=15, max_poll_seconds=120)
+    interval, max_wait = _poll_settings(SimpleNamespace(interval=None, max_wait=None), config)
+
+    assert (interval, max_wait) == (15, 120)
+
+
+@pytest.mark.parametrize(
+    ("interval", "max_wait"),
+    [(1, None), (None, 0), (-5, 60)],
+)
+def test_poll_settings_reject_invalid_values(interval, max_wait):
+    with pytest.raises(ParamError):
+        _poll_settings(SimpleNamespace(interval=interval, max_wait=max_wait), CONFIG)
 
 
 class FakeClient:

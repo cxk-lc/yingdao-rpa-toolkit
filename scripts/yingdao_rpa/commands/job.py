@@ -16,10 +16,13 @@ from typing import Any, Callable
 
 from ..config import Config
 from ..errors import JobFailedError, ParamError, PollTimeoutError
+from ..logging_setup import get_logger
 from ..runtime import Runtime
 
 START_PATH = "/oapi/dispatch/v2/job/start"
 QUERY_PATH = "/oapi/dispatch/v2/job/query"
+
+logger = get_logger("job")
 
 TERMINAL_STATUSES = frozenset({"finish", "stopped", "error", "skipped", "cancel"})
 PARAM_TYPES = frozenset({"str", "int", "float", "bool", "file"})
@@ -151,6 +154,16 @@ def _check_range(value: int | None, name: str, minimum: int = 60, maximum: int =
         raise ParamError(f"{name} 必须在 {minimum}~{maximum} 之间，当前为：{value}")
 
 
+def _poll_settings(args: argparse.Namespace, config: Config) -> tuple[int, int]:
+    interval = args.interval if args.interval is not None else config.poll_interval_seconds
+    max_wait = args.max_wait if args.max_wait is not None else config.max_poll_seconds
+    if interval < 5:
+        raise ParamError(f"--interval 不能小于 5 秒，当前为：{interval}")
+    if max_wait < 1:
+        raise ParamError(f"--max-wait 必须大于 0 秒，当前为：{max_wait}")
+    return interval, max_wait
+
+
 def _resolve_target(args: argparse.Namespace, config: Config) -> tuple[str, str]:
     account = (args.account_name or config.default_account_name or "").strip()
     group = (args.robot_group_uuid or config.default_robot_client_group_uuid or "").strip()
@@ -224,6 +237,7 @@ def poll_job(
         attempts += 1
         job = query_once(client, job_uuid)
         status = str(job.get("status") or "")
+        logger.info("轮询任务 %s：第 %d 次，状态=%s", job_uuid, attempts, status or "unknown")
         if status in TERMINAL_STATUSES:
             return job
         if time.monotonic() >= deadline:
@@ -275,11 +289,12 @@ def run_start(args: argparse.Namespace, runtime: Runtime) -> dict:
                 "启动成功但响应缺少 jobUuid，无法继续等待",
                 request_id=payload.get("requestId"),
             )
+        interval, max_wait = _poll_settings(args, runtime.config)
         job = poll_job(
             runtime.client,
             str(job_uuid),
-            interval=args.interval or runtime.config.poll_interval_seconds,
-            max_wait=args.max_wait or runtime.config.max_poll_seconds,
+            interval=interval,
+            max_wait=max_wait,
         )
         result["job"] = job
         _split_failure(job, str(job_uuid))
@@ -300,11 +315,12 @@ def run_query(args: argparse.Namespace, runtime: Runtime) -> dict:
         }
 
     if args.wait:
+        interval, max_wait = _poll_settings(args, runtime.config)
         job = poll_job(
             runtime.client,
             args.job_uuid,
-            interval=args.interval or runtime.config.poll_interval_seconds,
-            max_wait=args.max_wait or runtime.config.max_poll_seconds,
+            interval=interval,
+            max_wait=max_wait,
         )
     else:
         job = query_once(runtime.client, args.job_uuid)

@@ -7,7 +7,7 @@
 
 - [ ] `python scripts/yd.py --version` 输出 `yingdao-rpa-toolkit 0.1.0`，退出码 0
 - [ ] `python scripts/yd.py --help` 能看到 `auth / config / job` 三个命令
-- [ ] `python -m pytest -q` 全绿（当前 AI 自测：57 passed）
+- [ ] `python -m pytest -q` 全绿（当前 AI 自测：62 passed）
 - [ ] `python scripts/yd.py config show` 输出合法 JSON，`ok=true`
 
 ## 2. 主流程走查（好不好用）
