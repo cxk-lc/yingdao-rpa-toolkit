@@ -73,4 +73,4 @@
 
 - 是否发布：立即发布
 - 版本号（若发布）：v0.1.0
-- 说明：已推送至 `git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public），包含 `main` 与 annotated tag `v0.1.0`。
+- 说明：已推送至 `git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public），包含 `main` 与 annotated tag `v0.1.0`；Release 资产 `yingdao-rpa-toolkit-v0.1.0.zip` 已上传。

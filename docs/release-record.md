@@ -10,6 +10,9 @@
 - 版本号：v0.1.0
 - 发布方式：立即发布（GitHub 远端）
 - 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
+- GitHub Release：https://github.com/cxk-lc/yingdao-rpa-toolkit/releases/tag/v0.1.0
+- Release 资产：`yingdao-rpa-toolkit-v0.1.0.zip`（112,840 字节）
+- 资产 SHA256：`86d493f280255a6c0ca4e5088eb0b229f5efc67a888f0c6d88c021933ecd7eea`
 - 验收代码 commit：`37b066d42abe40b4414b28753632ab34fc6f761b`
 - tag 指向 commit：`v0.1.0` 指向本发布记录所在 commit；首次推送前由 `d2a1f2a` 重建，代码树相对验收 commit 仅新增 `LICENSE`、验收签署与发布记录
 - 是否已推送远端：是（`main` 与 `v0.1.0`）
@@ -28,6 +31,7 @@
 - 测试：`python -m pytest -q` → **146 passed**（2026-11-06）。
 - 人工验收：`docs/acceptance-checklist.md` 结论「通过」，验收人「用户（对话确认）」，日期 2026-11-06。
 - 远端校验：`git ls-remote origin` 可见 `refs/heads/main` 与 `refs/tags/v0.1.0`。
+- Release 资产校验：从 GitHub Release 重新下载 `yingdao-rpa-toolkit-v0.1.0.zip`，SHA256 与本地构建一致。
 - 真实接口抽样：
   - `auth token` 获取 token 成功，无缓存文件生成。
   - `account list --all --size 10` 拉取 3 页并聚合 27 条，`fetchedPages=3`。

@@ -14,6 +14,7 @@
 ├── SKILL.md                 # 技能入口：何时用、怎么调、硬规则
 ├── AGENTS.md                # AI 编程代理的项目值班手册
 ├── README.md
+├── USAGE.md                 # 使用说明：命令行逐条详解 + 自然语言调用
 ├── pyproject.toml           # 包元数据；pip install -e . 后可用 yd 命令
 ├── requirements.txt         # 运行时依赖（空）
 ├── requirements-dev.txt     # pytest
@@ -81,6 +82,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 不带 `scripts/yd.py` 前缀时，也可以 `pip install -e .` 后直接使用 `yd` 命令。
 
+## 使用说明
+
+上面是「最短可用路径」。完整的参数表、边界条件、常见坑，以及**用一句话让 AI 帮你跑**（自然语言调用）的写法，见 [`USAGE.md`](USAGE.md)：
+
+- 第一次上手：看 USAGE 的「2. 准备：配置与凭据」+「4.4 完整链路」。
+- 不想背命令：看「3. 方式一：自然语言调用」，里面有效说法/无效说法对照。
+- 踩坑了：看「6. 常见坑」和「7. 排障三步」。
+
 ## 配置优先级
 
 ```
@@ -94,18 +103,20 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 命令清单（v0.1）
 
-| 命令 | 作用 |
-|---|---|
-| `config init [--scope project\|user] [--force]` | 生成配置模板 |
-| `config show` | 查看生效配置（脱敏） |
-| `auth check` | 验证凭据，输出脱敏 token 与有效期 |
-| `auth token` | 获取完整 accessToken，供其它命令直接传入；不写文件 |
-| `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]` | 查询单台机器人状态；名称缺 `@` 时先查企业账号补全 |
-| `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选 |
-| `job start --app-id ... (--account-name \| --robot-group-uuid) ...` | 启动一次应用运行 |
-| `job query --job-uuid ... [--wait]` | 查询运行状态与输出参数 |
+| 命令                                                                                  | 作用                              |
+| ----------------------------------------------------------------------------------- | ------------------------------- |
+| `config init [--scope project\|user] [--force]`                                     | 生成配置模板                          |
+| `config show`                                                                       | 查看生效配置（脱敏）                      |
+| `auth check`                                                                        | 验证凭据，输出脱敏 token 与有效期            |
+| `auth token`                                                                        | 获取完整 accessToken，供其它命令直接传入；不写文件 |
+| `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]`                        | 查询单台机器人状态；名称缺 `@` 时先查企业账号补全     |
+| `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选          |
+| `job start --app-id ... (--account-name \| --robot-group-uuid) ...`                 | 启动一次应用运行                        |
+| `job query --job-uuid ... [--wait]`                                                 | 查询运行状态与输出参数                     |
 
-全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
+|                                  |                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| 全局参数：`--dry-run`、\`--format json | text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout\`。 |
 
 ## Token 不落盘与跨命令传递
 
@@ -139,10 +150,14 @@ YD_ACCESS_TOKEN="$TOKEN" "$PY" scripts/yd.py job query --job-uuid <uuid>
 
 ## 作为技能安装
 
-```bash
-# 目标目录名需与 SKILL.md 的 name 一致
-cp -r "D:/Documents/WorkBuddy/影刀RPA工具包" "C:/Users/admin/.workbuddy/skills/yingdao-rpa-toolkit"
-```
+- 目标目录名需与 SKILL.md 的 name 一致
+- 直接克隆仓库代码或者从release下载skill压缩包到本地并解压缩，然后将代码文件夹整个放到智能体工作台的技能目录中
+- 不知道工作台的skill目录可以直接问智能体，或者直接让智能体帮你安装
+
+### 安装提示词
+
+- 请根据 https://skillhub.cn/install/skillhub.md，安装 @indiv-cxk/yingdao-rpa-toolkit。
+- 请从 https://github.com/cxk-lc/yingdao-rpa-toolkit，安装 cxk-lc/yingdao-rpa-toolkit。
 
 > 该目录名已存在一份旧版实现；本版验收通过前建议先备份旧目录，再替换。
 
