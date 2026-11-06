@@ -11,7 +11,7 @@ python scripts/yd.py account list --account-type basic --account-type senior
 python scripts/yd.py account list --all --size 100
 ```
 
-`account list` 只读，不会创建或修改账号。
+`account list` 只读，不会创建或修改账号。它也被 `robot info` 用来把机器人名称前缀补成 `loginAccount`。
 
 ## 2. 参数
 

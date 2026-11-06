@@ -7,7 +7,7 @@
 
 - [ ] `python scripts/yd.py --version` 输出 `yingdao-rpa-toolkit 0.1.0`，退出码 0
 - [ ] `python scripts/yd.py --help` 能看到 `account / auth / config / job / robot` 五个命令
-- [ ] `python -m pytest -q` 全绿（当前 AI 自测：135 passed）
+- [ ] `python -m pytest -q` 全绿（当前 AI 自测：146 passed）
 - [ ] `python scripts/yd.py config show` 输出合法 JSON，`ok=true`
 
 ## 2. 主流程走查（好不好用）
@@ -19,8 +19,10 @@
 - [ ] `auth check --dry-run` 默认掩码：`accessKeySecret=***`、`accessKeyId` 只露首尾各 4 位；加 `--show-secrets` 才输出原文
 - [ ] `TOKEN=$(... auth token --format text)` 得到纯 token 原文；用 `--access-token "$TOKEN"` 调用 `job query` 时不再请求 token 接口
 - [ ] `job start --app-id ... --account-name ... --param 月份=2026-10 --dry-run` 的预览 body 与预期一致，且未发出真实请求
-- [ ] `robot info --name <前缀>` 能按 `enterpriseSuffix` 补全为 `<前缀>@<企业标识>`，`data.requested.suffixApplied=true`
-- [ ] 传入完整名称 `ceshi1@xxx` 时原样使用，不被配置覆盖；`--suffix` 可临时覆盖配置
+- [ ] `robot info --name <前缀>` 会先请求 `account list`；命中时 `resolvedBy=account`，`accountName` 等于该账号的 `loginAccount`
+- [ ] 企业账号无匹配时回退 `enterpriseSuffix`，`requested.fallback=no-account-match`
+- [ ] 传入完整名称 `ceshi1@xxx` 时原样使用，不触发账号查询；`--suffix` 可跳过查询直接补全
+- [ ] `robot info --name <前缀> --dry-run` 在无 `@`、无 `--suffix` 时返回两段式预览（账号查询 + `<loginAccount>` 占位）
 - [ ] `robot info` 能显示 `status`、`statusName`、`online`、`idle`、IP 与备注
 - [ ] `account list` 能按关键词/手机号/账号类型/时间范围筛选，`data.page.total` 与 `data.count` 符合预期
 - [ ] `account list --all --size 10` 能自动翻页并聚合全部账号；`requested.fetchedPages` 与总页数一致
@@ -36,9 +38,9 @@
 - [ ] `job start` 两者都不给，退出码 2（本地拦截，不发请求）
 - [ ] `--param` 缺少 `=` 或参数名重复，退出码 2
 - [ ] 参数总长超过 8000 字符，退出码 2 并提示拆批 / `type=file`
-- [ ] `robot info --name ceshi1` 且配置无 `enterpriseSuffix`、也没传 `--suffix`，退出码 2 并提示补充后缀
+- [ ] `robot info --name no-such-robot-zzz`（企业账号无匹配且配置无 `enterpriseSuffix`）退出码 2，并提示补充名称/后缀
 - [ ] `robot info --name ceshi1@` 或 `--suffix` 与 `--uuid` 同时使用，退出码 2
-- [ ] 用不匹配的名称/后缀查询，返回“未查询到机器人”，hint 指向 `enterpriseSuffix` / `--suffix` / `--uuid`
+- [ ] 用不匹配的完整名称查询，返回“未查询到机器人”，hint 指向 `loginAccount` / `--uuid`
 - [ ] `account list --size 0` 或 `--size 101`、`--page 0` 退出码 2
 - [ ] `account list --account-type vip` 退出码 2；`--account-type basic,senior` 正常
 - [ ] 时间起点晚于终点退出码 2；`2026-01-01` 能转成秒级时间戳

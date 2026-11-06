@@ -65,7 +65,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10 --dry-run
 
-# 5.1 查询机器人状态（名称缺 @企业后缀 时自动补全）
+# 5.1 查询机器人状态（名称缺 @ 时先查企业账号补全 loginAccount）
 "$PY" scripts/yd.py robot info --name ceshi1
 
 # 5.2 查询 RPA 企业账号列表（可按关键词、类型、时间筛选）
@@ -88,7 +88,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ```
 
 - 凭据也可用 `YD_ACCESS_KEY_ID` / `YD_ACCESS_KEY_SECRET` 注入，适合 CI 或临时会话。
-- 企业版机器人账号后缀用 `enterpriseSuffix`（如 `@csqy1`，写 `csqy1` 也会自动补 `@`）；`robot info --name` 缺少后缀时自动补全。
+- 企业版机器人账号后缀用 `enterpriseSuffix`（如 `@csqy1`）；`robot info --name` 缺少 `@` 时先查企业账号取 `loginAccount`，无匹配再回退该配置。
 - `.env`、`.yingdao/` 已在 `.gitignore` 中，不会被提交。
 - 私有化部署只改 `baseUrl` 为专属域名，不要带 `/oapi` 路径。
 
@@ -100,7 +100,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | `config show` | 查看生效配置（脱敏） |
 | `auth check` | 验证凭据，输出脱敏 token 与有效期 |
 | `auth token` | 获取完整 accessToken，供其它命令直接传入；不写文件 |
-| `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]` | 查询单台机器人状态；名称缺后缀时自动补全 |
+| `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]` | 查询单台机器人状态；名称缺 `@` 时先查企业账号补全 |
 | `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选 |
 | `job start --app-id ... (--account-name \| --robot-group-uuid) ...` | 启动一次应用运行 |
 | `job query --job-uuid ... [--wait]` | 查询运行状态与输出参数 |

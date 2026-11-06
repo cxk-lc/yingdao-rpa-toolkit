@@ -79,7 +79,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 # 3. 可选：确认目标机器人在线且空闲
 "$PY" "$SKILL_DIR/scripts/yd.py" robot info --name ceshi1
-# 名称缺少 @企业后缀 时：优先用配置 enterpriseSuffix，或本次 --suffix @csqy1
+# 名称缺 @ 时：先查企业账号取 loginAccount；--suffix 可跳过查询；配置 enterpriseSuffix 仅作回退
 
 # 4. 先干跑核对请求体（不发送请求）
 "$PY" "$SKILL_DIR/scripts/yd.py" job start \
@@ -107,14 +107,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `--idempotent-uuid`：不超过 36 位；网络超时重发时避免重复启动。
 - `--priority` / `--wait-timeout-seconds` / `--run-timeout` / `--execute-scope`：透传接口同名字段。
 - `--access-token`：直接使用已有 token（优先于凭据）；也可用 `YD_ACCESS_TOKEN` 传入。token 只在内存，不写文件。
-- `robot info --name`：机器人账号名；不带 `@企业标识` 时，用 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有则本地拦截。
+- `robot info --name`：机器人账号名；不带 `@企业标识` 时，先查企业账号取 `loginAccount`，查不到再回退 `--suffix` / 配置 `enterpriseSuffix`；都没有则本地拦截。
 - `robot info --uuid`：机器人 uuid；切换调度模式后会变化，通常优先用 `--name`。
 - `account list`：`--keyword` / `--phone` / `--account-type basic|senior` / 时间范围；`--size` 最大 100，`--all` 自动翻页（默认最多 50 页）。
 
 ## 硬规则（必须遵守）
 
 1. **不得编造标识**：`appId`、`robotClientName`、`jobUuid` 必须来自用户明确提供或上游查询结果，不要猜测。
-2. **机器人名称要完整**：企业版账号形如 `ceshi1@csqy1`。用户只给前缀时，先用 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有就停下来让用户补充，**不要猜企业后缀**。
+2. **机器人名称要完整**：企业版账号形如 `ceshi1@csqy1`。用户只给前缀时，先显式 `--suffix`；否则用 `account list` 找对应 `loginAccount`，再回退配置 `enterpriseSuffix`；都没有就停下来让用户补充，**不要猜企业后缀**。
 3. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
 4. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
 5. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
@@ -145,6 +145,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 - `job start` 的 `robotUuid` 是 **应用 uuid**（appId），不是机器人 uuid。
 - `robot info` 的 `accountName` 必须是完整企业账号；`status` 为 `connected/idle/allocated/running/offline`，`online` 与 `idle` 是工具补充的派生字段。
+- `robot info --name` 不带 `@` 时会先查企业账号（最多 3 页 × 100 条），匹配 `loginAccount` 的 @ 前缀或账号 `name`；多个匹配会要求改用完整 `loginAccount`。
 - `accountName` 与 `robotClientGroupUuid` 互斥；两者都缺时任务不会执行，只会排队到超时。
 - 机器人 `offline` 时派发仍可能返回成功，但任务会排队，直到 `waitTimeoutSeconds` 超时。
 - 入参总长按 8000 字符本地拦截；超限请拆批，或把长文本转成 `type=file` 的 URL。

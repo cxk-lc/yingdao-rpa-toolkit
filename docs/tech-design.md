@@ -18,7 +18,7 @@
 分四层，依赖方向单向向下，入口层不直接碰 `urllib`：
 
 1. **入口层**：`scripts/yd.py`（薄壳）→ `yingdao_rpa/cli.py`（解析参数、装配依赖、兜底异常）→ `yingdao_rpa/commands/*`（一个子命令一个模块，`register()` + `run()`）。
-2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；`accounts.py` 负责机器人账号后缀补全；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。
+2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；`accounts.py` 负责机器人账号后缀补全；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。`commands/robot.py` 在名称缺 `@` 时复用 `account list` 查 `loginAccount`，再调用机器人接口。
 3. **基础设施层**：`transport.py` 只做 HTTP 往返与网络异常归一化；不判断业务成功与否。
 4. **横切层**：`config.py`（四层配置合并与校验）、`errors.py`（异常体系 ↔ 退出码）、`logging_setup.py`（分级日志与脱敏）、`output.py`（stdout JSON 契约）。
 
@@ -40,6 +40,7 @@
 - **token 不落盘与传递**：token 只在进程内存，跨命令需显式传递；调用方传入的 token 失效时不静默替换。对策：`auth token` 输出完整 token（禁止 `--save`），其它命令用 `--access-token` / `YD_ACCESS_TOKEN` 接收；401 时对"凭据换取"的 token 刷新一次，对"外部传入"的 token 直接报错并提示重新获取。
 - **POST 重试的副作用**：`job/start` 非幂等，网络超时后重发可能重复启动。对策：仅对 429 退避重试；用户可传 `--idempotent-uuid` 获得服务端幂等保护。
 - **Windows 编码**：中文参数与控制台 GBK 冲突。对策：入口 `reconfigure(encoding="utf-8")`，文件读写显式 `encoding="utf-8"`。
+- **机器人名称补全**：机器人名称可能只给前缀，企业版需要 `@企业标识`。对策：先查 `account list` 取 `loginAccount`，再回退 `--suffix` / `enterpriseSuffix`；企业账号接口不可用时保留后缀回退路径，避免单点依赖。
 - **凭据泄漏**：日志、异常、`config show` 都可能带出 secret。对策：`Config.__repr__` 与 `config show` 统一脱敏；client 只记录 path 与 requestId。
 - **长参数**：超过约 8000 字符会被服务端拒绝。对策：本地预估 JSON 长度并拦截，提示拆批或 `type=file`。
 
