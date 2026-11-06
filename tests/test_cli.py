@@ -4,15 +4,18 @@
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
 from yingdao_rpa.cli import main
+from yingdao_rpa.client import TokenInfo
 
 ENV_KEYS = (
     "YD_BASE_URL",
     "YD_ACCESS_KEY_ID",
     "YD_ACCESS_KEY_SECRET",
+    "YD_ACCESS_TOKEN",
     "YD_TIMEOUT",
     "YD_POLL_INTERVAL",
     "YD_MAX_POLL_SECONDS",
@@ -128,3 +131,80 @@ def test_text_format_stays_human_readable(cli_workspace, capsys):
 
     assert code == 0
     assert "base_url=https://api.yingdao.com" in out
+
+
+class FakeTokenClient:
+    def __init__(self, config, access_token="", **kwargs):
+        self.config = config
+        self.access_token = access_token
+
+    def token_info(self):
+        return TokenInfo(
+            access_token="tok-full-123456",
+            expires_in=7199,
+            expires_at=time.time() + 7199,
+            source="fetched",
+        )
+
+
+def test_auth_token_outputs_full_token_without_persisting(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setattr("yingdao_rpa.cli.YingDaoClient", FakeTokenClient)
+
+    code, payload, _ = run_json(capsys, ["auth", "token"])
+
+    assert code == 0
+    assert payload["data"]["access_token"] == "tok-full-123456"
+    assert payload["data"]["token_type"] == "Bearer"
+    assert payload["data"]["persisted"] is False
+    assert payload["data"]["source"] == "fetched"
+    assert payload["data"]["expires_at"]
+
+
+def test_auth_token_text_mode_prints_raw_token(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setattr("yingdao_rpa.cli.YingDaoClient", FakeTokenClient)
+
+    code = main(["auth", "token", "--format", "text"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert out.strip() == "tok-full-123456"
+
+
+def test_auth_token_rejects_save(cli_workspace, capsys):
+    code, payload, _ = run_json(capsys, ["auth", "token", "--save", "token.json"])
+
+    assert code == 2
+    assert "不落盘" in payload["error"]["message"]
+    assert not (cli_workspace / "token.json").exists()
+
+
+def test_access_token_flag_is_forwarded_to_client(cli_workspace, capsys, monkeypatch):
+    captured = {}
+
+    class CapturingClient(FakeTokenClient):
+        def __init__(self, config, access_token="", **kwargs):
+            super().__init__(config, access_token, **kwargs)
+            captured["token"] = access_token
+
+    monkeypatch.setattr("yingdao_rpa.cli.YingDaoClient", CapturingClient)
+    monkeypatch.setenv("YD_ACCESS_TOKEN", "env-token")
+
+    run_json(capsys, ["auth", "token", "--access-token", "flag-token"])
+
+    assert captured["token"] == "flag-token"
+
+
+def test_access_token_env_is_used_when_flag_absent(cli_workspace, capsys, monkeypatch):
+    captured = {}
+
+    class CapturingClient(FakeTokenClient):
+        def __init__(self, config, access_token="", **kwargs):
+            super().__init__(config, access_token, **kwargs)
+            captured["token"] = access_token
+
+    monkeypatch.setattr("yingdao_rpa.cli.YingDaoClient", CapturingClient)
+    monkeypatch.setenv("YD_ACCESS_TOKEN", "env-token")
+
+    run_json(capsys, ["auth", "token"])
+
+    assert captured["token"] == "env-token"

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""客户端：鉴权头、业务错误映射、401 刷新、429 退避。
+"""客户端：鉴权头、业务错误映射、401 刷新、429 退避、外部 token。
 
 全部使用假传输层，不触网。
 """
@@ -12,7 +12,6 @@ import pytest
 
 from yingdao_rpa.client import YingDaoClient
 from yingdao_rpa.errors import ApiError, AuthError, NetworkError
-from yingdao_rpa.token_store import TokenStore
 from yingdao_rpa.transport import RawResponse
 
 TOKEN_PAYLOAD = {
@@ -37,22 +36,25 @@ class FakeTransport:
         return item
 
 
-def make_client(fake_config, tmp_path, responses, sleeps=None):
-    store = TokenStore(path=tmp_path / "cache.json", enabled=False)
+def make_client(fake_config, responses, sleeps=None, access_token=""):
     transport = FakeTransport(responses)
     captured = sleeps if sleeps is not None else []
 
     def fake_sleep(seconds):
         captured.append(seconds)
 
-    client = YingDaoClient(fake_config, transport=transport, store=store, sleep=fake_sleep)
+    client = YingDaoClient(
+        fake_config,
+        transport=transport,
+        access_token=access_token,
+        sleep=fake_sleep,
+    )
     return client, transport, captured
 
 
-def test_request_adds_bearer_and_returns_payload(fake_config, response_factory, tmp_path):
+def test_request_adds_bearer_and_returns_payload(fake_config, response_factory):
     client, transport, _ = make_client(
         fake_config,
-        tmp_path,
         [
             response_factory(200, TOKEN_PAYLOAD),
             response_factory(200, {"success": True, "code": 200, "data": {"jobUuid": "j-1"}}),
@@ -69,10 +71,9 @@ def test_request_adds_bearer_and_returns_payload(fake_config, response_factory, 
     assert client.last_meta.api_success is True
 
 
-def test_business_failure_maps_to_api_error(fake_config, response_factory, tmp_path):
+def test_business_failure_maps_to_api_error(fake_config, response_factory):
     client, _, _ = make_client(
         fake_config,
-        tmp_path,
         [
             response_factory(200, TOKEN_PAYLOAD),
             response_factory(200, {"success": False, "code": 500, "msg": "机器人不存在", "requestId": "r-9"}),
@@ -86,10 +87,9 @@ def test_business_failure_maps_to_api_error(fake_config, response_factory, tmp_p
     assert excinfo.value.request_id == "r-9"
 
 
-def test_401_refreshes_token_once(fake_config, response_factory, tmp_path):
+def test_401_refreshes_token_once(fake_config, response_factory):
     client, transport, _ = make_client(
         fake_config,
-        tmp_path,
         [
             response_factory(200, TOKEN_PAYLOAD),
             response_factory(401, {"success": False, "code": 401, "msg": "token expired"}),
@@ -105,10 +105,9 @@ def test_401_refreshes_token_once(fake_config, response_factory, tmp_path):
     assert transport.calls[3]["headers"]["Authorization"] == "Bearer tok-2"
 
 
-def test_401_without_token_is_auth_error(fake_config, response_factory, tmp_path):
+def test_401_without_token_is_auth_error(fake_config, response_factory):
     client, _, _ = make_client(
         fake_config,
-        tmp_path,
         [response_factory(401, {"success": False, "code": 401, "msg": "bad accessKey"})],
     )
 
@@ -116,10 +115,9 @@ def test_401_without_token_is_auth_error(fake_config, response_factory, tmp_path
         client.request("GET", "/oapi/token/v2/token/create", need_token=False)
 
 
-def test_429_uses_retry_after_header(fake_config, response_factory, tmp_path):
+def test_429_uses_retry_after_header(fake_config, response_factory):
     client, transport, sleeps = make_client(
         fake_config,
-        tmp_path,
         [
             response_factory(200, TOKEN_PAYLOAD),
             response_factory(429, {"success": False, "code": 429, "msg": "too many"}, {"Retry-After": "2"}),
@@ -134,10 +132,9 @@ def test_429_uses_retry_after_header(fake_config, response_factory, tmp_path):
     assert len(transport.calls) == 3
 
 
-def test_non_json_response_maps_to_network_error(fake_config, tmp_path):
+def test_non_json_response_maps_to_network_error(fake_config):
     client, _, _ = make_client(
         fake_config,
-        tmp_path,
         [RawResponse(status=502, text="<html>bad gateway</html>")],
     )
 
@@ -145,20 +142,57 @@ def test_non_json_response_maps_to_network_error(fake_config, tmp_path):
         client.request("GET", "/x", need_token=False)
 
 
-def test_cached_token_skips_token_request(fake_config, response_factory, tmp_path):
-    store = TokenStore(path=tmp_path / "cache.json", enabled=True)
-    transport = FakeTransport([response_factory(200, {"success": True, "code": 200, "data": {}})])
-    client = YingDaoClient(fake_config, transport=transport, store=store)
-    store.put(client._cache_key(), "cached-token", expires_at=9_999_999_999)
+def test_external_token_is_used_without_fetching_a_new_one(fake_config, response_factory):
+    client, transport, _ = make_client(
+        fake_config,
+        [response_factory(200, {"success": True, "code": 200, "data": {"ok": True}})],
+        access_token="passed-in-token",
+    )
 
     client.request("POST", "/x", body={})
 
     assert len(transport.calls) == 1
-    assert transport.calls[0]["headers"]["Authorization"] == "Bearer cached-token"
+    assert transport.calls[0]["headers"]["Authorization"] == "Bearer passed-in-token"
+
+
+def test_expired_external_token_is_not_silently_replaced(fake_config, response_factory):
+    client, transport, _ = make_client(
+        fake_config,
+        [response_factory(401, {"success": False, "code": 401, "msg": "token expired"})],
+        access_token="expired-token",
+    )
+
+    with pytest.raises(AuthError, match="已失效") as excinfo:
+        client.request("POST", "/x", body={})
+
+    assert "auth token" in (excinfo.value.hint or "")
+    assert len(transport.calls) == 1
+
+
+def test_token_info_reports_external_source(fake_config):
+    client, transport, _ = make_client(fake_config, [], access_token="passed-in-token")
+
+    info = client.token_info()
+
+    assert info.access_token == "passed-in-token"
+    assert info.source == "external"
+    assert info.expires_in == 0
+    assert transport.calls == []
+
+
+def test_create_token_does_not_touch_disk(fake_config, response_factory, tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    client, _, _ = make_client(fake_config, [response_factory(200, TOKEN_PAYLOAD)])
+
+    info = client.create_token()
+
+    assert info.source == "fetched"
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_preview_masks_secret_query(fake_config):
-    client = YingDaoClient(fake_config, store=TokenStore(enabled=False))
+    client = YingDaoClient(fake_config)
 
     preview = client.preview("GET", "/token", query={"accessKeySecret": "secret", "id": "1"})
 

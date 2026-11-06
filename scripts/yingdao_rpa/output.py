@@ -91,7 +91,6 @@ def render_text(payload: dict[str, Any]) -> str:
             "max_poll_seconds",
             "default_account_name",
             "default_robot_client_group_uuid",
-            "token_cache_enabled",
             "source",
             "config_path",
         ]
@@ -103,9 +102,13 @@ def render_text(payload: dict[str, Any]) -> str:
     if command == "auth check":
         return (
             f"鉴权成功  base_url={data.get('base_url')}  "
-            f"expires_in={data.get('expires_in')}s  cached={data.get('cached')}  "
+            f"expires_in={data.get('expires_in')}s  source={data.get('source')}  "
             f"token={data.get('token_masked')}"
         )
+
+    if command == "auth token":
+        # 该命令的 purpose 就是输出可直接传递的 token 原文，便于 shell 管道消费
+        return str(data.get("access_token") or "")
 
     if command.startswith("job"):
         job = data.get("job") or {}

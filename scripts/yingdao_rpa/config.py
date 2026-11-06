@@ -45,7 +45,6 @@ class Config:
     max_poll_seconds: int = 1800
     default_account_name: str = ""
     default_robot_client_group_uuid: str = ""
-    token_cache_enabled: bool = True
     source: str = ""
     config_path: str = ""
 
@@ -66,7 +65,6 @@ class Config:
             "max_poll_seconds": self.max_poll_seconds,
             "default_account_name": self.default_account_name,
             "default_robot_client_group_uuid": self.default_robot_client_group_uuid,
-            "token_cache_enabled": self.token_cache_enabled,
             "source": self.source,
             "config_path": self.config_path,
         }
@@ -216,7 +214,6 @@ def load_config(
         default_robot_client_group_uuid=str(
             pick("defaultRobotClientGroupUuid", "")[0] or ""
         ).strip(),
-        token_cache_enabled=not getattr(args, "no_cache", False),
         source=ak_source or "",
         config_path=config_path,
     )

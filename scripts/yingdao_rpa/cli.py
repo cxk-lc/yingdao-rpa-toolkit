@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 import traceback
@@ -22,7 +23,6 @@ from .errors import ApiError, NetworkError, ParamError, ToolError
 from .logging_setup import get_logger, setup_logging
 from .output import emit, make_error, make_success, now_iso
 from .runtime import Runtime
-from .token_store import TokenStore
 
 logger = get_logger("cli")
 
@@ -65,12 +65,22 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         args = parser.parse_args(argv_list)
+        if args.command == "auth token" and args.save:
+            # 在发请求前拦截，且后续错误输出也不落盘
+            raise ParamError(
+                "auth token 不允许 --save：accessToken 不落盘",
+                hint="请把 stdout 中的 access_token 直接传给下一条命令的 --access-token，"
+                "或写入进程环境变量 YD_ACCESS_TOKEN。",
+            )
         setup_logging(
             level="debug" if args.debug else "warning",
             log_file=args.log_file,
         )
         config = load_config(args)
-        client = YingDaoClient(config, store=TokenStore(enabled=config.token_cache_enabled))
+        access_token = (args.access_token or os.environ.get("YD_ACCESS_TOKEN", "")).strip()
+        if access_token:
+            logger.debug("使用调用方传入的 accessToken（仅内存，不落盘）")
+        client = YingDaoClient(config, access_token=access_token)
         runtime = Runtime(config=config, client=client, dry_run=args.dry_run, quiet=args.quiet)
         logger.debug("生效配置：%r", config)
 
@@ -123,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
 
     fmt = getattr(args, "format", "json") if args is not None else "json"
     save_path = getattr(args, "save", None) if args is not None else None
+    if getattr(args, "command", "") == "auth token":
+        save_path = None
     try:
         emit(payload, fmt=fmt, save_path=save_path)
     except OSError as exc:

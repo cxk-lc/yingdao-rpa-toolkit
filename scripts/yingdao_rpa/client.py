@@ -2,7 +2,8 @@
 """影刀开放 API 客户端。
 
 职责边界：
-- 管理 accessToken 生命周期（获取、缓存、401 刷新）；
+- 管理 accessToken 生命周期（获取、进程内复用、401 刷新）；
+- **不把 token 写入磁盘**：token 只存在于当前进程内存，跨命令通过参数传递；
 - 统一判定 `success` 字段，并把失败映射成本项目的异常；
 - 处理 429 退避；
 - 不关心具体业务命令，命令层只提交 path/body 并消费 `data`。
@@ -10,7 +11,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 import urllib.parse
@@ -25,11 +25,15 @@ from .errors import (
     NetworkError,
 )
 from .logging_setup import get_logger
-from .token_store import TokenStore
 from .transport import HttpTransport, RawResponse, encode_json_body
 
 TOKEN_PATH = "/oapi/token/v2/token/create"
 MAX_429_RETRIES = 3
+
+EXTERNAL_TOKEN_HINT = (
+    "请重新执行 `auth token` 获取新 token，再通过 --access-token 或 "
+    "YD_ACCESS_TOKEN 传给需要调用的命令。"
+)
 
 logger = get_logger("client")
 
@@ -39,7 +43,7 @@ class TokenInfo:
     access_token: str
     expires_in: int
     expires_at: float
-    cached: bool
+    source: str  # fetched（凭据换取） / external（调用方传入）
 
 
 @dataclass
@@ -48,7 +52,6 @@ class ApiMeta:
     api_code: int | None = None
     api_success: bool = False
     request_id: str | None = None
-    token_cached: bool = False
     dry_run: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -57,7 +60,6 @@ class ApiMeta:
             "api_code": self.api_code,
             "api_success": self.api_success,
             "request_id": self.request_id,
-            "token_cached": self.token_cached,
             "dry_run": self.dry_run,
         }
 
@@ -67,42 +69,22 @@ class YingDaoClient:
         self,
         config: Config,
         transport: HttpTransport | None = None,
-        store: TokenStore | None = None,
+        access_token: str = "",
         sleep: Any = None,
     ) -> None:
         self.config = config
         self.transport = transport or HttpTransport(config.timeout_seconds)
-        self.store = store if store is not None else TokenStore(enabled=config.token_cache_enabled)
         self._sleep = sleep or time.sleep
-        self._token = ""
-        self._token_expires_at = 0.0
-        self._token_cached = False
+        # 调用方传入的 token 优先使用；它只在内存里，不落盘、不写日志
+        self._token = (access_token or "").strip()
+        self._token_source = "external" if self._token else ""
+        self._token_expires_at = float("inf") if self._token else 0.0
         self.last_meta = ApiMeta(base_url=config.base_url)
 
     # ---------------------------------------------------------------- 鉴权
-    def _cache_key(self) -> str:
-        raw = f"{self.config.base_url}|{self.config.access_key_id}".encode("utf-8")
-        return hashlib.sha256(raw).hexdigest()[:16]
-
-    def create_token(self, force: bool = False) -> TokenInfo:
+    def create_token(self) -> TokenInfo:
+        """用 accessKeyId/accessKeySecret 换取 token；只更新内存，不写文件。"""
         require_credentials(self.config)
-        key = self._cache_key()
-        now = time.time()
-
-        if not force:
-            entry = self.store.get(key)
-            if entry:
-                self._token = str(entry["accessToken"])
-                self._token_expires_at = float(entry["expiresAt"])
-                self._token_cached = True
-                logger.debug("复用缓存的 accessToken（expires_at=%s）", self._token_expires_at)
-                return TokenInfo(
-                    access_token=self._token,
-                    expires_in=max(0, int(self._token_expires_at - now)),
-                    expires_at=self._token_expires_at,
-                    cached=True,
-                )
-
         payload = self.request(
             "GET",
             TOKEN_PATH,
@@ -124,31 +106,38 @@ class YingDaoClient:
 
         expires_in = int(data.get("expiresIn") or 7200)
         self._token = str(token)
-        # 官方要求按 expiresIn 缓存，不要自定义缓存时长；留 30 秒安全边界
-        self._token_expires_at = now + max(expires_in - 30, 0)
-        self._token_cached = False
-        logger.debug("已获取 accessToken（expires_in=%s）", expires_in)
-
-        if expires_in >= 60:
-            self.store.put(
-                key,
-                self._token,
-                self._token_expires_at,
-                base_url=self.config.base_url,
-                key_id_tail=self.config.access_key_id[-6:],
-            )
+        # 按官方 expiresIn 计算内存过期时间，留 30 秒安全边界
+        self._token_expires_at = time.time() + max(expires_in - 30, 0)
+        self._token_source = "fetched"
+        logger.debug("已获取 accessToken（expires_in=%s，仅内存持有）", expires_in)
 
         return TokenInfo(
             access_token=self._token,
             expires_in=expires_in,
             expires_at=self._token_expires_at,
-            cached=False,
+            source="fetched",
         )
 
-    def token(self) -> str:
+    def token_info(self) -> TokenInfo:
+        """返回当前可用 token；有传入或已获取且未过期时直接复用。"""
         if self._token and time.time() < self._token_expires_at:
-            return self._token
-        return self.create_token().access_token
+            if self._token_source == "external":
+                return TokenInfo(
+                    access_token=self._token,
+                    expires_in=0,
+                    expires_at=0.0,
+                    source="external",
+                )
+            return TokenInfo(
+                access_token=self._token,
+                expires_in=max(0, int(self._token_expires_at - time.time())),
+                expires_at=self._token_expires_at,
+                source="fetched",
+            )
+        return self.create_token()
+
+    def token(self) -> str:
+        return self.token_info().access_token
 
     # ------------------------------------------------------------ 请求封装
     def _decode(self, raw: RawResponse, path: str) -> dict[str, Any]:
@@ -251,9 +240,17 @@ class YingDaoClient:
 
             if raw.status == 401 or payload.get("code") == 401:
                 if need_token and retry_401 and not refreshed:
+                    if self._token_source == "external":
+                        # 调用方显式传入的 token 被视为权威，不擅自换成凭据换取的新 token
+                        raise AuthError(
+                            "传入的 accessToken 已失效",
+                            code=payload.get("code") or 401,
+                            request_id=payload.get("requestId"),
+                            hint=EXTERNAL_TOKEN_HINT,
+                        )
                     refreshed = True
-                    logger.info("accessToken 已失效，强制刷新后重试一次")
-                    self.create_token(force=True)
+                    logger.info("accessToken 已失效，重新获取后重试一次")
+                    self.create_token()
                     continue
                 raise AuthError(
                     payload.get("msg") or "接口未授权（401）",
@@ -274,7 +271,6 @@ class YingDaoClient:
                 api_code=payload.get("code"),
                 api_success=True,
                 request_id=payload.get("requestId"),
-                token_cached=self._token_cached,
             )
             return payload
 
