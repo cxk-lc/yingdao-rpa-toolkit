@@ -17,7 +17,8 @@ metadata:
 ## 何时使用
 
 - 用户要求用影刀/ShadowBot 执行某个应用，并给出了应用与机器人（或机器人分组）。
-- 需要验证 `accessKeyId / accessKeySecret` 是否可用、token 是否还能复用。
+- 需要验证 `accessKeyId / accessKeySecret` 是否可用。
+- 需要先取一个 accessToken，再把它直接传给后续命令或其它工具（token 不落盘）。
 - 需要预览一次启动请求的 method / URL / body（`--dry-run`），先核对再提交。
 - 已经拿到 `jobUuid`，需要查状态、输出参数、失败原因或截图地址。
 - 需要轮询直到任务进入终态（`--wait`）。
@@ -49,6 +50,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 首次配置、凭据缺失、换环境 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" config init` |
 | 看当前生效配置（密钥脱敏） | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" config show` |
 | 验证凭据、token 是否有效 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth check` |
+| 获取 token 并传给后续命令 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth token`，再把 `data.access_token` 传给 `--access-token` |
 | 触发一次应用运行 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job start ...` |
 | 查某次运行的状态/输出/失败原因 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid ...` |
 | 字段含义、退出码、JSON 结构 | `references/output-contract.md` | — |
@@ -62,6 +64,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 # 2. 验证凭据
 "$PY" "$SKILL_DIR/scripts/yd.py" auth check
+
+# 2.1 可选：先取 token，再显式传给后续命令（token 不落盘）
+"$PY" "$SKILL_DIR/scripts/yd.py" auth token
+# 读取 data.access_token 后：
+#   job start ... --access-token <token>
+# 或用 shell 管道：
+#   TOKEN=$("$PY" ... auth token --format text)
+#   YD_ACCESS_TOKEN="$TOKEN" "$PY" ... job query --job-uuid <uuid>
 
 # 3. 先干跑核对请求体（不发送请求）
 "$PY" "$SKILL_DIR/scripts/yd.py" job start \
@@ -88,13 +98,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `--params-file`：参数 JSON（对象，或 `{name,value,type}` 数组），适合参数很多的场景。
 - `--idempotent-uuid`：不超过 36 位；网络超时重发时避免重复启动。
 - `--priority` / `--wait-timeout-seconds` / `--run-timeout` / `--execute-scope`：透传接口同名字段。
+- `--access-token`：直接使用已有 token（优先于凭据）；也可用 `YD_ACCESS_TOKEN` 传入。token 只在内存，不写文件。
 
 ## 硬规则（必须遵守）
 
 1. **不得编造标识**：`appId`、`robotClientName`、`jobUuid` 必须来自用户明确提供或上游查询结果，不要猜测。
 2. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
 3. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
-4. **密钥不外泄**：不要把 `accessKeySecret`、完整 accessToken 写入回复、日志或文件；`auth check` 只输出脱敏 token。
+4. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。
 5. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
 6. **未实现的能力不要假装有**：本版没有列表查询、重试、停止、日志接口，遇到这类需求直接说明并给出替代路径。
 
@@ -105,6 +116,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ```
 
 失败时 `ok=false`，`error={type,code,message,hint,request_id}`，stdout 仍是合法 JSON。
+`auth token --format text` 是唯一例外：只输出 token 原文，便于 shell 管道消费。
 
 | 退出码 | 含义 |
 |---|---|
@@ -123,13 +135,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - 机器人 `offline` 时派发仍可能返回成功，但任务会排队，直到 `waitTimeoutSeconds` 超时。
 - 入参总长按 8000 字符本地拦截；超限请拆批，或把长文本转成 `type=file` 的 URL。
 - 官方建议轮询 30 秒一次，终态即停止；本工具默认取配置 `pollIntervalSeconds`。
-- token 最长 2 小时，按响应 `expiresIn` 缓存（预留 30 秒安全边界），不要自定固定缓存时长。
+- token 最长 2 小时，按响应 `expiresIn` 计算内存过期时间（预留 30 秒安全边界）；**不落盘**，跨命令用 `--access-token` 或 `YD_ACCESS_TOKEN` 传递。
+- 传入的 token 失效时返回退出码 3，并提示重新执行 `auth token`，不会静默换成凭据换取的新 token。
 - 遇到 429 会按 `Retry-After`（缺省指数退避）重试，最多 3 次。
 - Windows 控制台编码已在入口统一为 UTF-8。
 
 ## 当前版本边界
 
-已实现：`config init/show`、`auth check`、`job start`、`job query`。
+已实现：`config init/show`、`auth check`、`auth token`、`job start`、`job query`。
 未实现（后续迭代）：机器人/应用/任务列表、`job retry/stop`、运行日志、文件上传、工作队列、回调、RPA 账号管理、HTTP 常驻服务。
 
 ## 资源索引

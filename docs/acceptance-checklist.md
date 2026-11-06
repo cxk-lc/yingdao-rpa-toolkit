@@ -7,13 +7,16 @@
 
 - [ ] `python scripts/yd.py --version` 输出 `yingdao-rpa-toolkit 0.1.0`，退出码 0
 - [ ] `python scripts/yd.py --help` 能看到 `auth / config / job` 三个命令
-- [ ] `python -m pytest -q` 全绿（当前 AI 自测：62 passed）
+- [ ] `python -m pytest -q` 全绿（当前 AI 自测：70 passed）
 - [ ] `python scripts/yd.py config show` 输出合法 JSON，`ok=true`
 
 ## 2. 主流程走查（好不好用）
 
 - [ ] `config init` 能生成 `.yingdao/config.json`；填入真实密钥后 `config show` 能看到 `source` 与 `config_path`
-- [ ] `auth check` 能成功换到 token，显示 `expires_in` 与脱敏 token；再次执行显示 `cached=true`
+- [ ] `auth check` 能成功换到 token，显示 `expires_in` 与脱敏 token，`source=fetched`
+- [ ] `auth token` 输出完整 token，`data.persisted=false`，且磁盘上没有新增 token 缓存文件
+- [ ] `auth token --save token.json` 退出码 2，且文件未生成
+- [ ] `TOKEN=$(... auth token --format text)` 得到纯 token 原文；用 `--access-token "$TOKEN"` 调用 `job query` 时不再请求 token 接口
 - [ ] `job start --app-id ... --account-name ... --param 月份=2026-10 --dry-run` 的预览 body 与预期一致，且未发出真实请求
 - [ ] 去掉 `--dry-run` 后能拿到 `jobUuid`，控制台能看到对应运行记录
 - [ ] `job query --job-uuid ... --wait` 能轮询到终态；成功任务退出码 0
@@ -28,6 +31,7 @@
 - [ ] `--param` 缺少 `=` 或参数名重复，退出码 2
 - [ ] 参数总长超过 8000 字符，退出码 2 并提示拆批 / `type=file`
 - [ ] 明显错误的 `accessKeySecret` 返回退出码 3，且输出里没有完整密钥
+- [ ] 传入一个过期/错误的 `--access-token`，退出码 3 且提示重新执行 `auth token`
 - [ ] 断网或错误域名时退出码 4，提示可重试
 - [ ] `job query` 查一个失败任务，退出码 5 且 `data.job` 带 `remark`
 - [ ] `--wait` 超过 `--max-wait` 仍未终态，退出码 4 且带最后状态

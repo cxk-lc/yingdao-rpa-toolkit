@@ -24,7 +24,6 @@
     - `cli.py` 参数解析与装配；`commands/` 每子命令一个模块
     - `client.py` 影刀 API 封装（token/重试/错误分类）；`transport.py` HTTP 传输
     - `config.py` 配置管理；`errors.py` 异常与退出码；`logging.py` 日志；`output.py` JSON 契约
-    - `token_store.py` token 跨进程缓存
   - `tests/`：pytest 离线用例
   - `references/`：技能子文档；根目录 `SKILL.md` 为技能入口
 
@@ -33,6 +32,7 @@
 - 新增接口只允许在 `scripts/yingdao_rpa/commands/` 加模块并走 `client.request()`；禁止在命令里直接拼 URL 或调用 `urllib`。
 - stdout 永远只能有一条 JSON；任何日志、提示、进度都写 stderr。
 - 不得在代码、测试、文档、日志中出现真实 `accessKeySecret` / 完整 token；示例统一用占位符。
+- **accessToken 不落盘**：不得新增任何 token 文件缓存；跨命令只能通过 `--access-token` / `YD_ACCESS_TOKEN` 传递，`auth token` 禁止 `--save`。
 - 修改 API 字段后，同步更新 `SKILL.md` 的"关键事实"与 `references/` 对应文档。
 
 ## 边界约定

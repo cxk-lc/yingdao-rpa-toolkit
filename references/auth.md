@@ -40,29 +40,57 @@ python scripts/yd.py config show
 
 `config_path` 为空表示四层都没有配置文件，当前使用默认值。
 
-## 3. token 生命周期
+## 3. token 的获取、传递与失效
 
-- 用 `accessKeyId` / `accessKeySecret` 调 `/oapi/token/v2/token/create` 换取 `accessToken`。
-- token 最长有效期 2 小时；官方要求按响应 `expiresIn` 缓存，本工具预留 30 秒安全边界。
-- 缓存文件默认位于：
-  - Windows：`%LOCALAPPDATA%\yingdao-rpa-toolkit\token-cache.json`
-  - 其他：`~/.cache/yingdao-rpa-toolkit/token-cache.json`
-- 缓存按 `baseUrl + accessKeyId` 哈希隔离；可用 `--no-cache` 完全禁用。
-- 业务接口返回 401 时，会自动强制刷新一次 token 并重试原请求。
+### 3.1 两个命令的分工
+
+| 命令 | 用途 | 输出 |
+|---|---|---|
+| `auth check` | 验证凭据是否可用；确认能换到 token | 脱敏 token、有效期、来源 |
+| `auth token` | 取一个可用的完整 token，交给后续命令/工具 | `data.access_token`（完整） |
+
+两者都调用 `GET /oapi/token/v2/token/create`，但**都不会把 token 写到磁盘**。
+
+### 3.2 不落盘 + 直接传递
+
+```bash
+# 取 token（JSON）
+python scripts/yd.py auth token
+
+# 显式传给后续命令：把上一步 data.access_token 原样传入
+python scripts/yd.py job query --job-uuid <uuid> --access-token <token>
+
+# 或者：text 模式只输出 token 原文，配合 shell 变量 / 环境变量
+TOKEN=$(python scripts/yd.py auth token --format text)
+YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
+```
+
+- 传入的 token 优先于 `accessKeyId/accessKeySecret`，命令不会再换取新 token。
+- `auth token` 禁止 `--save`；token 只存在于进程内存与调用方手中。
+- 命令行参数可能出现在进程列表里；多用户机器上优先用 `YD_ACCESS_TOKEN`。
+
+### 3.3 有效期与 401
+
+- token 最长 2 小时；工具按响应 `expiresIn` 计算内存过期时间，预留 30 秒安全边界。
+- 用凭据换取的 token 在业务接口返回 401 时，会自动重新获取一次并重试原请求。
+- 调用方显式传入的 token 被视为权威：401 时直接返回退出码 3，并提示重新执行 `auth token`，**不会静默替换**成凭据换取的新 token。
 
 ## 4. 常见问题
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `缺少 accessKeyId / accessKeySecret`（退出码 2） | 四层配置都没有凭据 | 执行 `config init` 并填写，或设置环境变量 |
-| `HTTP 401` / `接口未授权`（退出码 3） | 密钥错误、被禁用、环境不对 | 核对密钥与 `baseUrl`；专有云不要用公有云域名 |
+| `HTTP 401` / `接口未授权`（退出码 3） | 密钥错误、被禁用、环境不对，或传入的 token 已过期 | 核对密钥与 `baseUrl`；传入 token 时重新执行 `auth token` |
+| `传入的 accessToken 已失效`（退出码 3） | `--access-token` / `YD_ACCESS_TOKEN` 过期 | 重新获取并传递新 token |
 | `baseUrl 只填域名`（退出码 2） | 把 `/oapi` 带进了域名 | 改为 `https://api.yingdao.com` |
 | 配置存在但读到旧值 | 项目级文件覆盖了用户级 | `config show` 看 `source` 与 `config_path` |
-| token 总是重新获取 | 缓存目录不可写或用了 `--no-cache` | 检查目录权限；或接受每次获取 |
+| `auth token` 报“不允许 --save” | 该命令禁止落盘 | 去掉 `--save`，用 `--access-token` 传递 |
 | 中文参数乱码 | 终端编码不是 UTF-8 | 入口已统一 `reconfigure`；仍异常时先写 `--params-file` |
 
 ## 5. 安全边界
 
 - 工具不会把 `accessKeySecret` 写回任何文件，也不会在 `config show` / 日志 / 异常中输出完整值。
 - `auth check` 只输出 `token_masked`（形如 `520d****c88e`）。
+- `auth token` 是唯一会输出完整 token 的命令，且明确禁止 `--save`；不要把它的输出粘进聊天、工单或日志。
 - 排查问题时可以贴 `request_id`、命令与退出码，不要贴密钥或完整 token。
+

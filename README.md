@@ -33,8 +33,7 @@
 │       ├── config.py        # 四层配置合并与校验
 │       ├── errors.py        # 异常体系 ↔ 退出码
 │       ├── logging_setup.py # stderr 日志
-│       ├── output.py        # stdout JSON 契约
-│       └── token_store.py   # token 跨进程缓存
+│       └── output.py        # stdout JSON 契约
 ├── references/
 │   ├── auth.md              # 配置与鉴权排查
 │   └── output-contract.md   # JSON 结构与退出码
@@ -56,15 +55,18 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 # 3. 验证凭据
 "$PY" scripts/yd.py auth check
 
-# 4. 干跑：只输出请求预览，不发送
+# 4. 获取 token（不落盘），把 data.access_token 传给下一条命令
+"$PY" scripts/yd.py auth token
+
+# 5. 干跑：只输出请求预览，不发送
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10 --dry-run
 
-# 5. 真实启动并拿 jobUuid
+# 6. 真实启动并拿 jobUuid（也可不传 token，让命令自行用凭据换取）
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10
 
-# 6. 查询结果；--wait 轮询到终态
+# 7. 查询结果；--wait 轮询到终态
 "$PY" scripts/yd.py job query --job-uuid <jobUuid> --wait
 ```
 
@@ -86,11 +88,30 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 |---|---|
 | `config init [--scope project\|user] [--force]` | 生成配置模板 |
 | `config show` | 查看生效配置（脱敏） |
-| `auth check [--refresh]` | 验证凭据、获取/复用 token |
+| `auth check` | 验证凭据，输出脱敏 token 与有效期 |
+| `auth token` | 获取完整 accessToken，供其它命令直接传入；不写文件 |
 | `job start --app-id ... (--account-name \| --robot-group-uuid) ...` | 启动一次应用运行 |
 | `job query --job-uuid ... [--wait]` | 查询运行状态与输出参数 |
 
-全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--no-cache`、`--debug`、`--log-file <file>`、`--timeout`。
+全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
+
+## Token 不落盘与跨命令传递
+
+`auth token` 只把 token 放在当前进程内存并输出，**不会写任何缓存文件**。其它命令通过两种方式直接接收：
+
+```bash
+# 方式一：显式传入（Agent 读取 JSON 的 data.access_token 后传参）
+"$PY" scripts/yd.py auth token
+"$PY" scripts/yd.py job query --job-uuid <uuid> --access-token <上一步的 token>
+
+# 方式二：环境变量 / shell 管道（text 模式只输出 token 原文）
+TOKEN=$("$PY" scripts/yd.py auth token --format text)
+YD_ACCESS_TOKEN="$TOKEN" "$PY" scripts/yd.py job query --job-uuid <uuid>
+```
+
+- 传入的 token 优先于凭据，命令不会再换取新 token。
+- 传入的 token 失效时返回退出码 3，并提示重新执行 `auth token`，不会静默替换。
+- `auth token` 禁止 `--save`，避免误落盘。
 
 ## 输出与退出码
 
@@ -115,4 +136,4 @@ cp -r "D:/Documents/WorkBuddy/影刀RPA工具包" "C:/Users/admin/.workbuddy/ski
 
 ## 当前边界
 
-已实现触发与查询的最小闭环。机器人/应用/任务列表、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。
+已实现：配置管理、`auth check` / `auth token`、`job start` / `job query` 的触发与查询闭环。机器人/应用/任务列表、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。

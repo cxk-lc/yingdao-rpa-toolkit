@@ -22,7 +22,8 @@
 |---|---|---|
 | 项目骨架 | 目录结构、模块边界、依赖声明、配置样例、文档 | 必须 |
 | 配置管理 | 四层优先级合并；密钥脱敏；模板生成；配置校验 | 必须 |
-| 鉴权与 token 缓存 | 换取 token、按 `expiresIn` 缓存、401 自动刷新一次 | 必须 |
+| 鉴权与 token 内存复用 | 换取 token、进程内复用、401 刷新一次；**不落盘** | 必须 |
+| token 交付 | `auth token` 输出完整 token，其它命令用 `--access-token` / `YD_ACCESS_TOKEN` 直接接收 | 必须 |
 | HTTP 传输与错误分类 | 超时、网络异常、429 退避、业务错误映射为统一异常 | 必须 |
 | 触发入口 | `job start`：参数解析、长度校验、dry-run、幂等 uuid | 必须 |
 | 结果查询 | `job query`：单次查询、`--wait` 轮询至终态、终态判定 | 必须 |
@@ -47,7 +48,8 @@
 - 接口 `success=true` 只代表调用成功；任务成功必须看终态 `finish`，否则退出码 5。
 - 网络错误、超时、429：有限次退避后失败，分别映射退出码 4 / 1。
 - 入参总长度超过 8000 字符：本地拦截（退出码 2），提示拆批或改用文件类型。
-- 密钥、完整 token 不得出现在 stdout、stderr、日志与 Git 提交中。
+- 密钥、完整 token 不得出现在 stdout、stderr、日志与 Git 提交中；唯一例外是 `auth token` 的输出，它必须被直接传递，且禁止 `--save`。
+- **token 不落盘**：不得写 token 缓存文件；跨命令只通过 `--access-token` 或 `YD_ACCESS_TOKEN` 传递，失效时报退出码 3 并提示重新获取。
 - Windows 控制台默认编码不是 UTF-8：入口统一 `reconfigure(encoding="utf-8")`。
 - 该工具包不做"猜标识"：`appId`、`jobUuid`、`robotClientName` 必须来自查询结果或用户明确提供。
 
@@ -57,6 +59,8 @@
 - [ ] `config init` 能生成模板；`config show` 对 secret 脱敏。
 - [ ] 未配置凭据时 `auth check` 退出码 2，且 stdout 仍是合法 JSON。
 - [ ] 已配置凭据时 `auth check` 能取到 token，并显示剩余有效期（人工验证）。
+- [ ] `auth token` 输出完整 token，且不产生任何缓存文件；`--save` 被拒绝。
+- [ ] 用 `--access-token` 传入上一步 token 后，`job query` 不再换取新 token；token 失效时退出码 3。
 - [ ] `job start --dry-run` 不发送请求，输出 method/path/body 预览。
 - [ ] `job query --job-uuid <uuid>` 能输出状态；终态非 `finish` 时退出码 5。
 - [ ] 任意错误场景下，stdout 仍是一条可解析的 JSON。
@@ -66,4 +70,3 @@
 
 - 下一迭代优先补 `job retry/stop`，还是优先补 `app-list/robot-list`？前者补齐异常闭环，后者补齐"找标识"的链路。
 - 是否需要多环境 profile（公有云 / 专有云同时配置）？当前用 `--config` 指定文件即可满足。
-- token 文件缓存在 `%LOCALAPPDATA%` 是否可接受，还是要求纯内存（`--no-cache`）？
