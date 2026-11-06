@@ -10,6 +10,7 @@ import pytest
 
 from yingdao_rpa.cli import main
 from yingdao_rpa.client import TokenInfo
+from yingdao_rpa.utils import parse_timestamp
 
 ENV_KEYS = (
     "YD_BASE_URL",
@@ -258,3 +259,54 @@ def test_robot_info_dry_run_applies_suffix(cli_workspace, capsys, monkeypatch):
     assert code == 0
     assert payload["data"]["request"]["body"] == {"accountName": "ceshi1@csqy1"}
     assert payload["data"]["requested"]["suffixApplied"] is True
+
+
+def test_account_list_dry_run_builds_query(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        [
+            "account",
+            "list",
+            "--keyword",
+            "张三",
+            "--account-type",
+            "basic,senior",
+            "--page",
+            "2",
+            "--size",
+            "50",
+            "--latest-login-begin",
+            "2026-01-01",
+            "--dry-run",
+        ],
+    )
+
+    assert code == 0
+    query = payload["data"]["request"]["query"]
+    assert query["accountKeyword"] == "张三"
+    assert query["accountTypes"] == ["basic", "senior"]
+    assert query["page"] == 2
+    assert query["size"] == 50
+    assert query["latestLoginTimeBegin"] == parse_timestamp("2026-01-01")
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--size", "200"],
+        ["--page", "0"],
+        ["--account-type", "vip"],
+        ["--all", "--max-pages", "0"],
+    ],
+)
+def test_account_list_rejects_invalid_arguments(cli_workspace, capsys, monkeypatch, extra):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(capsys, ["account", "list", "--dry-run", *extra])
+
+    assert code == 2
+    assert payload["error"]["type"] == "ParamError"

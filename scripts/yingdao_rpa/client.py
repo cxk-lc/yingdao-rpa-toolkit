@@ -194,7 +194,7 @@ class YingDaoClient:
     ) -> dict[str, Any]:
         url = self.config.base_url + path
         if query:
-            url = f"{url}?{urllib.parse.urlencode(query)}"
+            url = f"{url}?{urllib.parse.urlencode(query, doseq=True)}"
 
         attempts_429 = 0
         refreshed = False

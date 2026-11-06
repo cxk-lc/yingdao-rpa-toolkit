@@ -191,6 +191,26 @@ def test_create_token_does_not_touch_disk(fake_config, response_factory, tmp_pat
     assert list(tmp_path.iterdir()) == []
 
 
+def test_query_list_is_encoded_as_repeated_params(fake_config, response_factory):
+    client, transport, _ = make_client(
+        fake_config,
+        [
+            response_factory(200, TOKEN_PAYLOAD),
+            response_factory(200, {"success": True, "code": 200, "data": []}),
+        ],
+    )
+
+    client.request(
+        "GET",
+        "/oapi/rpa/user/v1/list",
+        query={"accountTypes": ["basic", "senior"], "page": 1},
+    )
+
+    url = transport.calls[1]["url"]
+    assert "accountTypes=basic" in url
+    assert "accountTypes=senior" in url
+
+
 def test_preview_masks_secret_query(fake_config):
     client = YingDaoClient(fake_config)
 

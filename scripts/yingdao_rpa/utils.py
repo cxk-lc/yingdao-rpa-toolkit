@@ -21,6 +21,44 @@ def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+def parse_timestamp(value: str | int | None, *, field: str = "时间") -> int | None:
+    """把秒级时间戳或常见日期写法转换成秒级时间戳。
+
+    支持：`1710000000`、`2026-01-01`、`2026-01-01 12:30:00`、ISO 8601。
+    不带时区的写法按本机时区解释。
+    """
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.lstrip("-").isdigit():
+        number = int(text)
+        if abs(number) >= 10**12:
+            raise ValueError(
+                f"{field} 看起来是毫秒时间戳，接口需要秒级；请除以 1000 后再传"
+            )
+        return number
+
+    candidate = text.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+        except ValueError as exc:
+            raise ValueError(
+                f"{field} 格式无法识别：{value}；"
+                "支持秒级时间戳、YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS"
+            ) from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.astimezone()
+    return int(parsed.timestamp())
+
+
 # 预览默认掩码：命中这些词根的字段整体隐藏，accessKeyId 这类标识保留首尾各 4 位
 FULL_MASK_WORDS = ("secret", "password", "token", "credential")
 PARTIAL_MASK_WORDS = ("accesskeyid", "accesskey", "appkey")

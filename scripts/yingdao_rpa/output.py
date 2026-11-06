@@ -111,6 +111,28 @@ def render_text(payload: dict[str, Any]) -> str:
         # 该命令的 purpose 就是输出可直接传递的 token 原文，便于 shell 管道消费
         return str(data.get("access_token") or "")
 
+    if command == "account list":
+        items = data.get("items") or []
+        lines = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                f"[{item.get('accountTypeName') or item.get('accountType') or '-'}] "
+                f"{item.get('name') or '-'}（{item.get('loginAccount') or '-'}）  "
+                f"手机={item.get('phone') or '-'}  "
+                f"角色={item.get('roleName') or item.get('role') or '-'}  "
+                f"最近登录={item.get('latestLoginTime') or '-'}  "
+                f"过期={item.get('expiredTime') or '-'}"
+            )
+        if not lines:
+            lines.append("（无账号）")
+        page = data.get("page") or {}
+        total = page.get("total")
+        if total is not None:
+            lines.append(f"共 {total} 条；本次已拉取 {len(items)} 条")
+        return "\n".join(lines)
+
     if command == "robot info":
         robot = data.get("robot") or {}
         requested = data.get("requested") or {}
