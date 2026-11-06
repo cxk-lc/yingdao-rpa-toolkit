@@ -8,10 +8,11 @@
 ### 1. 版本号
 
 - 版本号：v0.1.0
-- 发布方式：立即发布（本地 annotated tag；当前无远端，未推送）
+- 发布方式：立即发布（GitHub 远端）
+- 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
 - 验收代码 commit：`37b066d42abe40b4414b28753632ab34fc6f761b`
-- tag 指向 commit：`v0.1.0` 指向本发布记录所在 commit；其代码树与验收代码 commit 一致，差异仅为 `docs/acceptance-checklist.md` 与 `docs/release-record.md`
-- 是否已推送远端：否（未配置远端，保留「仅本地」标注）
+- tag 指向 commit：`v0.1.0` 指向本发布记录所在 commit；首次推送前由 `d2a1f2a` 重建，代码树相对验收 commit 仅新增 `LICENSE`、验收签署与发布记录
+- 是否已推送远端：是（`main` 与 `v0.1.0`）
 
 ### 2. 变更摘要
 
@@ -26,6 +27,7 @@
 
 - 测试：`python -m pytest -q` → **146 passed**（2026-11-06）。
 - 人工验收：`docs/acceptance-checklist.md` 结论「通过」，验收人「用户（对话确认）」，日期 2026-11-06。
+- 远端校验：`git ls-remote origin` 可见 `refs/heads/main` 与 `refs/tags/v0.1.0`。
 - 真实接口抽样：
   - `auth token` 获取 token 成功，无缓存文件生成。
   - `account list --all --size 10` 拉取 3 页并聚合 27 条，`fetchedPages=3`。
@@ -34,15 +36,18 @@
 ### 4. 已知问题
 
 - 自动化测试全部离线；真实 `job start` / `job query` 的失败终态未纳入 AI 自测，依赖人工验收覆盖。
-- 当前未配置 git 远端，`v0.1.0` tag 未推送。
+- 远端仓库当前为 **public**；如需私有，需在 GitHub 仓库设置中调整可见性。
 - `job start --account-name` 仍按传入值使用，不参与机器人名称的 `loginAccount` 自动补全。
 
 ### 5. 回滚指令
 
 ```bash
-# 首个正式 tag 之前无更早稳定 tag；回退到验收代码基线
+# 回退到验收代码基线
 git checkout 37b066d
 
-# 如需撤销本地 tag
+# 撤销远端 tag（仅在需要撤回发布时）
+git push origin :refs/tags/v0.1.0
+
+# 撤销本地 tag
 git tag -d v0.1.0
 ```
