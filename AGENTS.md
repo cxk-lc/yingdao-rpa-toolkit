@@ -12,13 +12,28 @@
 
 ## 项目信息
 
-- 项目名称：影刀RPA工具包
-- 技术栈：（技术设计阶段填写）
-- 运行命令：（如 npm start，填写后更新）
-- 测试命令：（如 npm test，填写后更新）
+- 项目名称：影刀RPA工具包（Skill + Python CLI，零第三方运行时依赖）
+- 技术栈：Python 3.10 / 标准库 `urllib` + `argparse` + `logging` / pytest（仅开发）
+- 运行命令：`python scripts/yd.py --help`
+- 测试命令：`python -m pytest -q`
+- 本机解释器：`D:/Program Files/miniconda3/envs/python_3_10/python.exe`
 - 目录说明：
-  - `docs/`：产品设计文档（product-design.md）与技术方案文档（tech-design.md）
-  - 其他目录：（按需补充）
+  - `docs/`：产品设计（product-design.md）与技术方案（tech-design.md）、验收清单
+  - `scripts/yd.py`：唯一 CLI 入口（薄壳）
+  - `scripts/yingdao_rpa/`：核心包
+    - `cli.py` 参数解析与装配；`commands/` 每子命令一个模块
+    - `client.py` 影刀 API 封装（token/重试/错误分类）；`transport.py` HTTP 传输
+    - `config.py` 配置管理；`errors.py` 异常与退出码；`logging.py` 日志；`output.py` JSON 契约
+    - `token_store.py` token 跨进程缓存
+  - `tests/`：pytest 离线用例
+  - `references/`：技能子文档；根目录 `SKILL.md` 为技能入口
+
+## 本项目专属规则
+
+- 新增接口只允许在 `scripts/yingdao_rpa/commands/` 加模块并走 `client.request()`；禁止在命令里直接拼 URL 或调用 `urllib`。
+- stdout 永远只能有一条 JSON；任何日志、提示、进度都写 stderr。
+- 不得在代码、测试、文档、日志中出现真实 `accessKeySecret` / 完整 token；示例统一用占位符。
+- 修改 API 字段后，同步更新 `SKILL.md` 的"关键事实"与 `references/` 对应文档。
 
 ## 边界约定
 
