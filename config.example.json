@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://api.yingdao.com",
+  "accessKeyId": "<在此填写 accessKeyId>",
+  "accessKeySecret": "<在此填写 accessKeySecret>",
+  "timeoutSeconds": 30,
+  "pollIntervalSeconds": 30,
+  "maxPollSeconds": 1800,
+  "defaultAccountName": "",
+  "defaultRobotClientGroupUuid": ""
+}
