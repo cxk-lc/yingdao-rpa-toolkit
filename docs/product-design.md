@@ -28,6 +28,7 @@
 | 触发入口 | `job start`：参数解析、长度校验、dry-run、幂等 uuid | 必须 |
 | 结果查询 | `job query`：单次查询、`--wait` 轮询至终态、终态判定 | 必须 |
 | 机器人状态查询 | `robot info`：按名称/ uuid 查询状态、IP、备注；名称缺企业后缀时按配置补全 | 必须 |
+| 企业账号查询 | `account list`：按关键词、手机号、账号类型、登录/过期时间筛选；支持分页与全量拉取 | 必须 |
 | 日志 | stderr 分级日志（`--debug` / `--log-file`），不污染 stdout JSON | 必须 |
 | 统一输出契约 | stdout 永远一条 JSON；退出码 0/1/2/3/4/5/6 语义固定 | 必须 |
 | 技能说明 | `SKILL.md` 意图路由、硬规则、资源索引 | 必须 |
@@ -54,6 +55,8 @@
 - Windows 控制台默认编码不是 UTF-8：入口统一 `reconfigure(encoding="utf-8")`。
 - 该工具包不做"猜标识"：`appId`、`jobUuid`、`robotClientName` 必须来自查询结果或用户明确提供。
 - 企业版机器人账号必须带 `@企业标识`：名称缺少后缀时，按 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有则本地拦截并提示，不猜后缀。
+- `account list` 的 `size` 上限 100；`--all` 默认最多 50 页，达到上限必须返回 warning，不能静默截断。
+- 账号列表包含手机号等个人信息，只按需展示，不写入日志与公开文档。
 
 ## 6. 验收要点
 
@@ -66,6 +69,7 @@
 - [ ] `job start --dry-run` 不发送请求，输出 method/path/body 预览。
 - [ ] `robot info --name <前缀>` 能按配置后缀补全；传完整名称时原样使用；后缀缺失时退出码 2 并提示补充。
 - [ ] `robot info` 能输出状态、`statusName`、`online`、`idle`、IP 与备注。
+- [ ] `account list` 能按关键词/类型筛选；`--size 200` 被本地拦截；`--all` 能聚合多页且总数一致；达到 `--max-pages` 时返回 warning。
 - [ ] `job query --job-uuid <uuid>` 能输出状态；终态非 `finish` 时退出码 5。
 - [ ] 任意错误场景下，stdout 仍是一条可解析的 JSON。
 - [ ] `pytest` 全绿，且不依赖真实网络与真实凭据。

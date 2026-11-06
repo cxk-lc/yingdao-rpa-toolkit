@@ -57,6 +57,7 @@
 | `auth check` | `{base_url, expires_in, expires_at, source, token_masked, config_source}` |
 | `auth token` | `{access_token, token_type, expires_in, expires_at, source, persisted:false, base_url}` |
 | `robot info` | `{kind:"robot", requested:{inputName,accountName,suffixApplied}, robot:{...原始字段, statusName, online, idle}}` |
+| `account list` | `{kind:"account_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
 | `job start` | `{kind:"job_start", jobUuid, idempotentFlag, request_id}`；加 `--wait` 时多一个 `job` |
 | `job query` | `{kind:"job", jobUuid, job}` |
 | 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`，其中 `query`/`body` 默认掩码；`robot info` 另带 `requested` |

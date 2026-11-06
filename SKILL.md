@@ -20,6 +20,7 @@ metadata:
 - 需要验证 `accessKeyId / accessKeySecret` 是否可用。
 - 需要先取一个 accessToken，再把它直接传给后续命令或其它工具（token 不落盘）。
 - 需要查询某台机器人的在线/空闲状态、IP 与备注（`robot info`）。
+- 需要查 RPA 企业子账号列表，按关键词、手机号、账号类型或时间范围筛选（`account list`）。
 - 需要预览一次启动请求的 method / URL / body（`--dry-run`），先核对再提交。
 - 已经拿到 `jobUuid`，需要查状态、输出参数、失败原因或截图地址。
 - 需要轮询直到任务进入终态（`--wait`）。
@@ -53,6 +54,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 验证凭据、token 是否有效 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth check` |
 | 获取 token 并传给后续命令 | `references/auth.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" auth token`，再把 `data.access_token` 传给 `--access-token` |
 | 查某台机器人是否在线/空闲 | `references/robot-info.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name <名称>` |
+| 查 RPA 企业账号列表 | `references/account-list.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" account list [--keyword ...]` |
 | 触发一次应用运行 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job start ...` |
 | 查某次运行的状态/输出/失败原因 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid ...` |
 | 字段含义、退出码、JSON 结构 | `references/output-contract.md` | — |
@@ -107,6 +109,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `--access-token`：直接使用已有 token（优先于凭据）；也可用 `YD_ACCESS_TOKEN` 传入。token 只在内存，不写文件。
 - `robot info --name`：机器人账号名；不带 `@企业标识` 时，用 `--suffix` 或配置 `enterpriseSuffix` 补全；两者都没有则本地拦截。
 - `robot info --uuid`：机器人 uuid；切换调度模式后会变化，通常优先用 `--name`。
+- `account list`：`--keyword` / `--phone` / `--account-type basic|senior` / 时间范围；`--size` 最大 100，`--all` 自动翻页（默认最多 50 页）。
 
 ## 硬规则（必须遵守）
 
@@ -116,7 +119,8 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 4. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
 5. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
 6. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
-7. **未实现的能力不要假装有**：本版没有列表查询、重试、停止、日志接口，遇到这类需求直接说明并给出替代路径。
+7. **未实现的能力不要假装有**：本版没有机器人列表、应用列表、任务列表、重试/停止、运行日志接口，遇到这类需求直接说明并给出替代路径。
+8. **账号列表含个人信息**：`account list` 返回手机号等敏感数据，只在必要范围内展示，不要写入公开文档、日志或无关的共享位置。
 
 ## 输出契约与退出码
 
@@ -145,6 +149,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - 机器人 `offline` 时派发仍可能返回成功，但任务会排队，直到 `waitTimeoutSeconds` 超时。
 - 入参总长按 8000 字符本地拦截；超限请拆批，或把长文本转成 `type=file` 的 URL。
 - 官方建议轮询 30 秒一次，终态即停止；本工具默认取配置 `pollIntervalSeconds`。
+- `account list` 的 `size` 最大 100；时间筛选字段是秒级时间戳，CLI 可用 `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM:SS` 自动转换。
 - token 最长 2 小时，按响应 `expiresIn` 计算内存过期时间（预留 30 秒安全边界）；**不落盘**，跨命令用 `--access-token` 或 `YD_ACCESS_TOKEN` 传递。
 - 传入的 token 失效时返回退出码 3，并提示重新执行 `auth token`，不会静默换成凭据换取的新 token。
 - 遇到 429 会按 `Retry-After`（缺省指数退避）重试，最多 3 次。
@@ -152,8 +157,8 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 当前版本边界
 
-已实现：`config init/show`、`auth check`、`auth token`、`robot info`、`job start`、`job query`。
-未实现（后续迭代）：机器人/应用/任务列表、`job retry/stop`、运行日志、文件上传、工作队列、回调、RPA 账号管理、HTTP 常驻服务。
+已实现：`config init/show`、`auth check`、`auth token`、`robot info`、`account list`、`job start`、`job query`。
+未实现（后续迭代）：机器人/应用/任务列表、`job retry/stop`、运行日志、文件上传、工作队列、回调、RPA 账号增删改/重置密码、HTTP 常驻服务。
 
 ## 资源索引
 
@@ -164,5 +169,6 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 输出契约 | `references/output-contract.md` | 解析 JSON、确认退出码 |
 | 配置与鉴权 | `references/auth.md` | 配置凭据、token 失效排查 |
 | 机器人状态 | `references/robot-info.md` | 账号后缀规则、状态枚举、查不到机器人 |
+| 企业账号列表 | `references/account-list.md` | 筛选条件、时间戳、分页与字段说明 |
 | 配置样例 | `config.example.json` | 首次配置参考 |
 | 项目文档 | `docs/product-design.md`、`docs/tech-design.md` | 了解范围与架构 |
