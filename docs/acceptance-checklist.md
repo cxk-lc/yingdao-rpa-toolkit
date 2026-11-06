@@ -1,29 +1,44 @@
 # 人工验收清单 · 影刀RPA工具包
 
 > 原则：AI 自测通过 ≠ 无 Bug；验收单只能由人签。
-> 使用：每个版本交付前逐项走查，全部通过后再进入下一轮迭代。
+> 本清单对应 v0.1「基础框架 + 触发/查询最小闭环」。
 
 ## 1. 冒烟测试（能不能跑）
 
-- [ ] 按文档中的运行命令可正常启动
-- [ ] 主流程可以走通
+- [ ] `python scripts/yd.py --version` 输出 `yingdao-rpa-toolkit 0.1.0`，退出码 0
+- [ ] `python scripts/yd.py --help` 能看到 `auth / config / job` 三个命令
+- [ ] `python -m pytest -q` 全绿（当前 AI 自测：57 passed）
+- [ ] `python scripts/yd.py config show` 输出合法 JSON，`ok=true`
 
 ## 2. 主流程走查（好不好用）
 
-- [ ] 用户核心路径完整可用
-- [ ] 交互体验符合预期（操作流畅、反馈明确）
+- [ ] `config init` 能生成 `.yingdao/config.json`；填入真实密钥后 `config show` 能看到 `source` 与 `config_path`
+- [ ] `auth check` 能成功换到 token，显示 `expires_in` 与脱敏 token；再次执行显示 `cached=true`
+- [ ] `job start --app-id ... --account-name ... --param 月份=2026-10 --dry-run` 的预览 body 与预期一致，且未发出真实请求
+- [ ] 去掉 `--dry-run` 后能拿到 `jobUuid`，控制台能看到对应运行记录
+- [ ] `job query --job-uuid ... --wait` 能轮询到终态；成功任务退出码 0
+- [ ] `--format text` 的人读输出对 `config show / auth check / job query` 都可读
 
 ## 3. 边界与异常（稳不稳）
 
-- [ ] 空输入 / 非法输入有合理提示
-- [ ] 大文件 / 大数据量场景可接受
-- [ ] 上次出过问题的地方已回归验证
+- [ ] 未配置凭据时 `auth check` 退出码 2，stdout 仍是合法 JSON，并给出配置指引
+- [ ] 配置里仍是 `<在此填写 ...>` 占位符时，报错明确指出是占位符（退出码 2）
+- [ ] `job start` 同时给 `--account-name` 与 `--robot-group-uuid`，退出码 2
+- [ ] `job start` 两者都不给，退出码 2（本地拦截，不发请求）
+- [ ] `--param` 缺少 `=` 或参数名重复，退出码 2
+- [ ] 参数总长超过 8000 字符，退出码 2 并提示拆批 / `type=file`
+- [ ] 明显错误的 `accessKeySecret` 返回退出码 3，且输出里没有完整密钥
+- [ ] 断网或错误域名时退出码 4，提示可重试
+- [ ] `job query` 查一个失败任务，退出码 5 且 `data.job` 带 `remark`
+- [ ] `--wait` 超过 `--max-wait` 仍未终态，退出码 4 且带最后状态
 
 ## 4. 交付物检查
 
-- [ ] 所有改动均有对应 Git commit
-- [ ] 测试全部通过（含 Agent 提交的证据）
-- [ ] 文档已同步更新（规格变化已回写）
+- [ ] 所有改动均有对应 Git commit（docs / 骨架 / 测试与技能文档）
+- [ ] 测试全部通过（含 Agent 提交的命令与结果证据）
+- [ ] `AGENTS.md` 的「项目信息」与实际命令一致
+- [ ] `SKILL.md` 只声明已实现能力，未实现项写在「当前版本边界」
+- [ ] `git status` 干净；`.yingdao/`、`.env` 未被提交
 
 ## 5. 验收结论
 
