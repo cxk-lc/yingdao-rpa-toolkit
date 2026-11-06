@@ -24,6 +24,9 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# WorkBuddy 本地工作目录
+.workbuddy/
+
 # 系统与编辑器
 .DS_Store
 Thumbs.db
