@@ -1,5 +1,7 @@
 # 应用列表与运行记录
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 对应接口文档：
 
 - **3.2 查询应用列表**：`POST /oapi/app/open/query/list`
@@ -11,16 +13,16 @@
 
 ```bash
 # 第一页，默认 30 条
-python scripts/yd.py app list
+"$PY" "$SKILL_DIR/scripts/yd.py" app list
 
 # 按名称模糊查、按所有者账号精确查
-python scripts/yd.py app list --app-name 订单 --owner zhangsan@corp
+"$PY" "$SKILL_DIR/scripts/yd.py" app list --app-name 订单 --owner zhangsan@corp
 
 # 拉全量（默认最多 50 页）
-python scripts/yd.py app list --all --size 100
+"$PY" "$SKILL_DIR/scripts/yd.py" app list --all --size 100
 
 # 先看请求
-python scripts/yd.py app list --app-name 订单 --dry-run
+"$PY" "$SKILL_DIR/scripts/yd.py" app list --app-name 订单 --dry-run
 ```
 
 | 参数 | 接口字段 | 说明 |
@@ -50,18 +52,18 @@ python scripts/yd.py app list --app-name 订单 --dry-run
 
 ```bash
 # 按应用查（第一页）
-python scripts/yd.py app runs --app-id <appId>
+"$PY" "$SKILL_DIR/scripts/yd.py" app runs --app-id <appId>
 
 # 按时间范围查（应用与时间至少给一个）
-python scripts/yd.py app runs --begin-date "2026-11-02" --end-date "2026-11-09"
+"$PY" "$SKILL_DIR/scripts/yd.py" app runs --begin-date "2026-11-02" --end-date "2026-11-09"
 
 # 应用 + 时间 + 自动翻页
-python scripts/yd.py app runs --app-id <appId> \
+"$PY" "$SKILL_DIR/scripts/yd.py" app runs --app-id <appId> \
   --begin-date "2026-11-02 00:00:00" --end-date "2026-11-09 00:00:00" \
   --all --size 100
 
 # 从某个游标继续
-python scripts/yd.py app runs --app-id <appId> --min-id 479746186064532771
+"$PY" "$SKILL_DIR/scripts/yd.py" app runs --app-id <appId> --min-id 479746186064532771
 ```
 
 | 参数 | 接口字段 | 说明 |

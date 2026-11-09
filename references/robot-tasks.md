@@ -1,5 +1,7 @@
 # 机器人任务队列与历史记录
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 对应接口文档 **4.1 查询机器人任务队列**：`POST /oapi/dispatch/v2/job/list`。
 
 该接口返回待执行队列与历史 job，可按机器人、应用、任务、状态与触发时间筛选，使用游标翻页。
@@ -8,21 +10,21 @@
 
 ```bash
 # 最近一页（默认 20 条）
-python scripts/yd.py robot tasks
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks
 
 # 按应用、机器人、状态筛选
-python scripts/yd.py robot tasks --app-id <appId> --status error,finish
-python scripts/yd.py robot tasks --robot-client-uuid <robotClientUuid> --status running
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks --app-id <appId> --status error,finish
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks --robot-client-uuid <robotClientUuid> --status running
 
 # 按触发时间筛选
-python scripts/yd.py robot tasks \
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks \
   --trigger-begin "2026-11-01 00:00:00" --trigger-end "2026-11-09 00:00:00"
 
 # 自动往下翻页
-python scripts/yd.py robot tasks --all --size 100
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks --all --size 100
 
 # 从游标往回翻
-python scripts/yd.py robot tasks --direction pre --cursor-id 284065875470133295
+"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks --direction pre --cursor-id 284065875470133295
 ```
 
 ## 2. 参数

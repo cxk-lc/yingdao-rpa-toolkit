@@ -473,7 +473,7 @@ YD robot tasks --app-id <appId> --status error,finish
 | 开关                                   | 作用                              |
 | ------------------------------------ | ------------------------------- |
 | `--format json\|text`                | `json`（默认，机器读）/ `text`（人读）      |
-| `--dry-run`                          | 只输出请求预览，不发请求                    |
+| `--dry-run`                          | 只输出预览：不发请求、不写盘（`config init` 仅显示目标路径） |
 | `--show-secrets`                     | 预览里输出密钥原文（默认掩码，只在核对密钥时用）        |
 | `--save <path>`                      | 把完整 JSON 另存到文件（`auth token` 禁用） |
 | `--access-token <token>`             | 直接用传入的 token，优先于 AK/SK          |

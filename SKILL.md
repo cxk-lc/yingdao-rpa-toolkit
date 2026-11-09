@@ -23,7 +23,7 @@ metadata:
 - 需要查 RPA 企业子账号列表，按关键词、手机号、账号类型或时间范围筛选（`account list`）。
 - 需要找应用 `appId`、查应用列表（`app list`）或应用运行历史（`app runs`）。
 - 需要查机器人任务队列/历史 job，按机器人、应用、状态、触发时间筛选（`robot tasks`）。
-- 需要预览一次启动请求的 method / URL / body（`--dry-run`），先核对再提交。
+- 需要预览请求的 method / URL / query / body / headers（`--dry-run`，查询类命令均支持），先核对再提交。
 - 已经拿到 `jobUuid`，需要查状态、输出参数、失败原因或截图地址。
 - 需要轮询直到任务进入终态（`--wait`）。
 
@@ -31,12 +31,12 @@ metadata:
 
 - 操作用户本机的影刀客户端（登录、触发器、Studio 编辑）→ 使用本地客户端类技能。
 - 需要查询机器人全量列表、调度计划列表，或重试/停止运行、查运行日志、上传文件、写工作队列 → **本版未实现**，不要假装能调用。
-- 只想了解影刀 API 文档、不执行操作 → 直接读项目根目录的《影刀RPA开放API接口文档.md》。
+- 只想了解影刀 API 文档、不执行操作 → 源码仓库内可读《影刀RPA开放API接口文档.md》；该文件不随发布包分发，安装态请改用 `references/` 中已沉淀的接口说明。
 - 结果需要排版成固定汇报表格 → 交给 `rpa-result-formatter`。
 
 ## 前置约定
 
-下文 `{SKILL_DIR}` 指本技能目录（安装后默认 `C:/Users/admin/.workbuddy/skills/yingdao-rpa-toolkit`）。
+下文 `{SKILL_DIR}` 指本技能目录，即本 `SKILL.md` 所在目录（下例是本机安装位置，换机请替换为实际路径）。
 
 ```bash
 SKILL_DIR="C:/Users/admin/.workbuddy/skills/yingdao-rpa-toolkit"
@@ -68,6 +68,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ```bash
 # 1. 首次使用：生成配置模板（项目级；无 .git 时生成到用户级）
+#    只想先看落点：加 --dry-run，仅显示目标路径与是否存在，不创建文件
 "$PY" "$SKILL_DIR/scripts/yd.py" config init
 # 编辑 .yingdao/config.json 填入 accessKeyId / accessKeySecret
 
@@ -117,11 +118,13 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `--priority` / `--wait-timeout-seconds` / `--run-timeout` / `--execute-scope`：透传接口同名字段。
 - `--access-token`：直接使用已有 token（优先于凭据）；也可用 `YD_ACCESS_TOKEN` 传入。token 只在内存，不写文件。
 - `robot info --name`：机器人账号名；不带 `@企业标识` 时，先查企业账号取 `loginAccount`，查不到再回退 `--suffix` / 配置 `enterpriseSuffix`；都没有则本地拦截。
-- `robot info --uuid`：机器人 uuid；切换调度模式后会变化，通常优先用 `--name`。
+- `robot info --uuid`：机器人 uuid；切换调度模式后会变化，通常优先用 `--name`。该模式返回 `requested.resolvedBy=uuid`，`inputName/accountName` 为 `null`。
 - `account list`：`--keyword` / `--phone` / `--account-type basic|senior` / 时间范围；`--size` 最大 100，`--all` 自动翻页（默认最多 50 页）。
 - `app list`：`--app-id` / `--app-name`（模糊）/ `--owner`；`--size` 最大 100，`--all` 按页码翻页。
 - `app runs`：`--app-id` 与时间范围至少给一个；只给时间时必须同时给起止；时间跨度最多 7 天；`--all` 按 `minId` 游标翻页。
 - `robot tasks`：`--app-id`（接口字段 robotUuid）/ `--robot-client-uuid` / `--status` / 触发时间；`--all` 沿 `next`/`pre` 游标翻页。
+- `--dry-run`（全局）：只构造并输出预览，**不发请求、不写盘**；`config init --dry-run` 只显示目标路径与 `exists`，不会创建文件。
+- `--show-secrets`（全局）：仅在 `--dry-run` 预览中生效，放开密钥原文；默认掩码，非预览场景传了也不改变行为。
 
 ## 硬规则（必须遵守）
 
@@ -141,7 +144,8 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ```
 
 失败时 `ok=false`，`error={type,code,message,hint,request_id}`，stdout 仍是合法 JSON。
-`auth token --format text` 是唯一例外：只输出 token 原文，便于 shell 管道消费。
+`meta` 恒含 `base_url` / `api_code` / `api_success` / `request_id` / `dry_run`；未发请求时中间三项为 `null`。
+`auth token --format text` 是唯一例外：只输出 token 原文，便于 shell 管道消费；加 `--dry-run` 时改为输出预览文本，绝不输出 token。
 
 | 退出码 | 含义 |
 |---|---|
@@ -177,7 +181,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 资源索引
 
-> Skill 发布包只包含 `SKILL.md`、`scripts/`、`references/`、配置样例与 `LICENSE`；`docs/`、`tests/`、`README.md`、`USAGE.md` 等仓库级文件不随包分发。
+> Skill 发布包只包含 `SKILL.md`、`scripts/`、`references/`、配置样例与 `LICENSE`；`docs/`、`tests/`、`README.md`、`USAGE.md` 等仓库级文件不随包分发。表中标注「仅源码仓库」的条目在安装态不存在，不要当作可用资源引用。
 
 | 资源 | 路径 | 何时使用 |
 |---|---|---|
@@ -190,4 +194,5 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 企业账号列表 | `references/account-list.md` | 筛选条件、时间戳、分页与字段说明 |
 | 应用列表/运行记录 | `references/app-list.md` | 找 appId、应用筛选、7 天时间范围、minId 游标 |
 | 配置样例 | `config.example.json` | 首次配置参考 |
-| 项目文档 | `docs/product-design.md`、`docs/tech-design.md` | 了解范围与架构 |
+| 接口原文（仅源码仓库） | `影刀RPA开放API接口文档.md` | 查完整接口定义；安装态不可用 |
+| 项目文档（仅源码仓库） | `docs/product-design.md`、`docs/tech-design.md` | 了解范围与架构；安装态不可用 |

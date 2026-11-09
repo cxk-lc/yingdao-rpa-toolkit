@@ -1,5 +1,7 @@
 # 输出契约与退出码
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 所有命令的 stdout **只有一条 JSON**。日志、进度、人读提示一律写 stderr，避免污染机器解析。
 
 ## 1. 成功结构
@@ -23,6 +25,8 @@
   }
 }
 ```
+
+`meta` 的五个键恒定存在。未发出请求时（`--dry-run`，以及 `config init/show` 这类本地命令）`api_code` / `api_success` / `request_id` 显式为 `null`，`dry_run` 为 `true` 或 `false`，调用方不必做"键是否存在"的判断。
 
 ## 2. 失败结构
 
@@ -52,18 +56,19 @@
 
 | 命令 | `data` |
 |---|---|
-| `config init` | `{path, scope, config_file}` |
+| `config init` | `{path, scope, config_file}`；加 `--dry-run` 时改为下方预览形态，且不写盘 |
 | `config show` | 脱敏后的配置字段 |
 | `auth check` | `{base_url, expires_in, expires_at, source, token_masked, config_source}` |
 | `auth token` | `{access_token, token_type, expires_in, expires_at, source, persisted:false, base_url}` |
-| `robot info` | `{kind:"robot", requested:{inputName,accountName,resolvedBy,suffixApplied,lookup?,fallback?}, robot:{...原始字段, statusName, online, idle}}` |
+| `robot info` | `{kind:"robot", requested:{inputName,accountName,resolvedBy,suffixApplied,lookup?,fallback?}, robot:{...原始字段, statusName, online, idle}}`；`--uuid` 模式下 `resolvedBy="uuid"`、`inputName/accountName` 为 `null`，另带 `robotClientUuid` |
 | `robot tasks` | `{kind:"robot_task_list", items:[...statusName], count, cursor:{hasData,nextId,preId,cursorDirection}, filters, requested}` |
 | `app list` | `{kind:"app_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
 | `app runs` | `{kind:"app_run_list", items:[...statusName], count, page, nextMinId, filters, requested}` |
 | `account list` | `{kind:"account_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
 | `job start` | `{kind:"job_start", jobUuid, idempotentFlag, request_id}`；加 `--wait` 时多一个 `job` |
 | `job query` | `{kind:"job", jobUuid, job}` |
-| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`，其中 `query`/`body` 默认掩码；`robot info` 无 `@` 且无 `--suffix` 时返回两段式预览（`resolution:"account-lookup"` + `followup`） |
+| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`：`headers` 恒存在（`Accept`，有 body 时加 `Content-Type`，需 token 时加 `Authorization: Bearer <accessToken>`）；`body` 无请求体时为 `null`；`query`/`body` 默认掩码。`robot info` 无 `@` 且无 `--suffix` 时返回两段式预览（`resolution:"account-lookup"` + `followup`）；`config init` 为本地写盘预览（`method:"WRITE"`、`url` 为目标路径、`body.exists` 指示是否已存在），**不创建任何文件** |
+
 
 ## 4. 退出码
 
@@ -97,9 +102,11 @@
 `auth token` 的用途就是交付 token，因此 `--format text` 只输出 token 原文（不含 JSON 包装），便于：
 
 ```bash
-TOKEN=$(python scripts/yd.py auth token --format text)
-YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
+TOKEN=$("$PY" "$SKILL_DIR/scripts/yd.py" auth token --format text)
+YD_ACCESS_TOKEN="$TOKEN" "$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid <uuid>
 ```
 
 该命令禁止 `--save`；JSON 模式下的完整 token 位于 `data.access_token`，应直接传给下一条命令的 `--access-token`。
+
+加 `--dry-run` 时 text 模式不再输出 token，而是输出预览文本（以 `[预览]` 开头），避免把"空输出"误当成空 token。
 

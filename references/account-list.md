@@ -1,14 +1,16 @@
 # RPA 企业账号列表
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 对应接口文档 **2.2 查询RPA企业账号列表**：`GET /oapi/rpa/user/v1/list`。
 
 ## 1. 命令
 
 ```bash
-python scripts/yd.py account list
-python scripts/yd.py account list --keyword 张三 --page 1 --size 20
-python scripts/yd.py account list --account-type basic --account-type senior
-python scripts/yd.py account list --all --size 100
+"$PY" "$SKILL_DIR/scripts/yd.py" account list
+"$PY" "$SKILL_DIR/scripts/yd.py" account list --keyword 张三 --page 1 --size 20
+"$PY" "$SKILL_DIR/scripts/yd.py" account list --account-type basic --account-type senior
+"$PY" "$SKILL_DIR/scripts/yd.py" account list --all --size 100
 ```
 
 `account list` 只读，不会创建或修改账号。它也被 `robot info` 用来把机器人名称前缀补成 `loginAccount`。
@@ -74,7 +76,7 @@ python scripts/yd.py account list --all --size 100
 
 - `count` 是本次实际拉取条数；`page.total` 是服务端总数。
 - `filters` 回显本次生效的筛选条件，便于复现。
-- `--dry-run` 只输出 `request.query`，不发送请求。
+- `--dry-run` 返回 `data.request`（method / url / query / body / headers）与 `data.requested`，不发送请求；`--format text` 时输出以 `[预览]` 开头的摘要。
 
 ## 5. 注意事项
 

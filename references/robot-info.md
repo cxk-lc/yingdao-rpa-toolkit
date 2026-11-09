@@ -1,21 +1,23 @@
 # 机器人信息与状态查询
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 对应接口文档 **4.2 查询机器人信息**：`POST /oapi/dispatch/v2/client/query`。
 
 ## 1. 命令
 
 ```bash
 # 按名称查询（推荐）
-python scripts/yd.py robot info --name ceshi1
+"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name ceshi1
 
 # 按 uuid 查询（不推荐：切换调度模式后会生成新 uuid）
-python scripts/yd.py robot info --uuid 0d6a835a-2e08-414a-af73-1e43f9d9c8ff
+"$PY" "$SKILL_DIR/scripts/yd.py" robot info --uuid 0d6a835a-2e08-414a-af73-1e43f9d9c8ff
 ```
 
 `--name` 与 `--uuid` 互斥，必须给其中一个。提前看请求体：
 
 ```bash
-python scripts/yd.py robot info --name ceshi1 --dry-run
+"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name ceshi1 --dry-run
 ```
 
 ## 2. 名称解析顺序
@@ -60,7 +62,7 @@ export YD_ENTERPRISE_SUFFIX=@csqy1
 单次命令覆盖（同时跳过企业账号查询）：
 
 ```bash
-python scripts/yd.py robot info --name ceshi1 --suffix @csqy1
+"$PY" "$SKILL_DIR/scripts/yd.py" robot info --name ceshi1 --suffix @csqy1
 ```
 
 - `--suffix` 只能与 `--name` 一起用。
@@ -100,7 +102,8 @@ python scripts/yd.py robot info --name ceshi1 --suffix @csqy1
 }
 ```
 
-- `resolvedBy`：`input`（原样使用）/ `suffix`（后缀补全）/ `account`（企业账号 loginAccount）。
+- `resolvedBy`：`input`（原样使用）/ `suffix`（后缀补全）/ `account`（企业账号 loginAccount）/ `uuid`（`--uuid` 模式）/ `account-lookup`（`--dry-run` 两段式预览）。
+- `--uuid` 模式下 `inputName` / `accountName` 为 `null`，`resolvedBy="uuid"`，并额外返回 `robotClientUuid`。
 - `fallback`：`no-account-match` 或 `account-query-failed`，表示走了配置后缀回退。
 
 ## 4. 常见问题

@@ -1,5 +1,7 @@
 # 配置与鉴权
 
+> 命令中的 `$PY` / `$SKILL_DIR` 见 `SKILL.md`「前置约定」；不要 `cd` 到技能目录执行。
+
 ## 1. 在影刀控制台取密钥
 
 1. 使用**企业管理员**账号登录影刀控制台。
@@ -29,14 +31,14 @@
 生成模板：
 
 ```bash
-python scripts/yd.py config init              # 有 .git 时写项目级，否则写用户级
-python scripts/yd.py config init --scope user # 强制写用户级
+"$PY" "$SKILL_DIR/scripts/yd.py" config init              # 有 .git 时写项目级，否则写用户级
+"$PY" "$SKILL_DIR/scripts/yd.py" config init --scope user # 强制写用户级
 ```
 
 查看当前生效配置（密钥脱敏）：
 
 ```bash
-python scripts/yd.py config show
+"$PY" "$SKILL_DIR/scripts/yd.py" config show
 ```
 
 `config_path` 为空表示四层都没有配置文件，当前使用默认值。
@@ -56,14 +58,14 @@ python scripts/yd.py config show
 
 ```bash
 # 取 token（JSON）
-python scripts/yd.py auth token
+"$PY" "$SKILL_DIR/scripts/yd.py" auth token
 
 # 显式传给后续命令：把上一步 data.access_token 原样传入
-python scripts/yd.py job query --job-uuid <uuid> --access-token <token>
+"$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid <uuid> --access-token <token>
 
 # 或者：text 模式只输出 token 原文，配合 shell 变量 / 环境变量
-TOKEN=$(python scripts/yd.py auth token --format text)
-YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
+TOKEN=$("$PY" "$SKILL_DIR/scripts/yd.py" auth token --format text)
+YD_ACCESS_TOKEN="$TOKEN" "$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid <uuid>
 ```
 
 - 传入的 token 优先于 `accessKeyId/accessKeySecret`，命令不会再换取新 token。
@@ -88,11 +90,13 @@ YD_ACCESS_TOKEN="$TOKEN" python scripts/yd.py job query --job-uuid <uuid>
 
 ```bash
 # 默认：掩码
-python scripts/yd.py auth check --dry-run
+"$PY" "$SKILL_DIR/scripts/yd.py" auth check --dry-run
 
 # 仅在明确需要核对密钥原文时：显式打开，输出会包含真实凭据，勿贴到工单或日志
-python scripts/yd.py auth check --dry-run --show-secrets
+"$PY" "$SKILL_DIR/scripts/yd.py" auth check --dry-run --show-secrets
 ```
+
+预览结果恒含 `request.headers`（`Accept`，需要 token 时再加 `Authorization: Bearer <accessToken>`）；`--format text` 输出以 `[预览]` 开头的摘要，不会出现"鉴权成功"字样，也不会因未取到 token 而输出空行。
 
 ## 4. 常见问题
 
