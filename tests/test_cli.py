@@ -108,6 +108,24 @@ def test_job_start_dry_run_never_sends_request(cli_workspace, capsys, monkeypatc
     assert payload["meta"]["dry_run"] is True
 
 
+def test_dry_run_meta_keeps_full_contract_keys(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        ["job", "start", "--app-id", "app-1", "--account-name", "robot@corp", "--dry-run"],
+    )
+
+    meta = payload["meta"]
+    assert code == 0
+    assert meta["base_url"] == "https://api.yingdao.com"
+    assert meta["api_code"] is None
+    assert meta["api_success"] is None
+    assert meta["request_id"] is None
+    assert meta["dry_run"] is True
+
+
 def test_job_query_requires_job_uuid(cli_workspace, capsys):
     code, payload, _ = run_json(capsys, ["job", "query"])
 
@@ -141,6 +159,32 @@ def test_auth_check_dry_run_show_secrets_is_opt_in(cli_workspace, capsys, monkey
     assert query["accessKeySecret"] == "sk-live-value"
 
 
+def test_auth_check_dry_run_text_reports_preview_not_success(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "9wncDaPR2gkErHd1@platform")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk-live-value")
+
+    code = main(["auth", "check", "--dry-run", "--format", "text"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert out.startswith("[预览]")
+    assert "未发送请求" in out
+    assert "鉴权成功" not in out
+    assert "Nones" not in out
+
+
+def test_auth_token_dry_run_text_prints_preview_instead_of_empty_line(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code = main(["auth", "token", "--dry-run", "--format", "text"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert out.strip()
+    assert out.startswith("[预览]")
+
+
 def test_config_init_creates_template_and_refuses_second_run(cli_workspace, capsys):
     code, payload, _ = run_json(capsys, ["config", "init", "--scope", "project"])
     assert code == 0
@@ -149,6 +193,30 @@ def test_config_init_creates_template_and_refuses_second_run(cli_workspace, caps
     code, payload, _ = run_json(capsys, ["config", "init", "--scope", "project"])
     assert code == 2
     assert payload["error"]["type"] == "ConfigError"
+
+
+def test_config_init_dry_run_does_not_write_file(cli_workspace, capsys):
+    code, payload, _ = run_json(capsys, ["config", "init", "--scope", "project", "--dry-run"])
+
+    assert code == 0
+    request = payload["data"]["request"]
+    assert payload["data"]["kind"] == "request_preview"
+    assert request["method"] == "WRITE"
+    assert request["body"]["scope"] == "project"
+    assert request["body"]["exists"] is False
+    assert not (cli_workspace / ".yingdao" / "config.json").exists()
+
+
+def test_config_init_dry_run_reports_existing_file_without_touching_it(cli_workspace, capsys):
+    run_json(capsys, ["config", "init", "--scope", "project"])
+    target = cli_workspace / ".yingdao" / "config.json"
+    before = target.read_text(encoding="utf-8")
+
+    code, payload, _ = run_json(capsys, ["config", "init", "--scope", "project", "--dry-run"])
+
+    assert code == 0
+    assert payload["data"]["request"]["body"]["exists"] is True
+    assert target.read_text(encoding="utf-8") == before
 
 
 def test_text_format_stays_human_readable(cli_workspace, capsys):
@@ -264,6 +332,25 @@ def test_robot_info_dry_run_applies_suffix(cli_workspace, capsys, monkeypatch):
     assert payload["data"]["requested"]["suffixApplied"] is True
 
 
+def test_robot_info_uuid_dry_run_keeps_requested_shape(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys, ["robot", "info", "--uuid", "robot-uuid-1", "--dry-run"]
+    )
+
+    data = payload["data"]
+    requested = data["requested"]
+    assert code == 0
+    assert requested["resolvedBy"] == "uuid"
+    assert requested["inputName"] is None
+    assert requested["accountName"] is None
+    assert requested["suffixApplied"] is False
+    assert requested["robotClientUuid"] == "robot-uuid-1"
+    assert data["request"]["headers"]["Authorization"] == "Bearer <accessToken>"
+
+
 def test_account_list_dry_run_builds_query(cli_workspace, capsys, monkeypatch):
     monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
     monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
@@ -327,6 +414,19 @@ def test_app_list_dry_run_builds_body(cli_workspace, capsys, monkeypatch):
     assert code == 0
     body = payload["data"]["request"]["body"]
     assert body == {"page": "2", "size": "50", "appName": "测试"}
+
+
+def test_app_list_dry_run_text_shows_preview_instead_of_empty_list(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code = main(["app", "list", "--app-name", "订单", "--dry-run", "--format", "text"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert out.startswith("[预览]")
+    assert "订单" in out
+    assert "（无应用）" not in out
 
 
 def test_app_runs_requires_app_or_time(cli_workspace, capsys, monkeypatch):

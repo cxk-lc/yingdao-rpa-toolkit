@@ -9,7 +9,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from yingdao_rpa.config import Config, load_config, require_credentials, write_config_template
+from yingdao_rpa.config import (
+    Config,
+    load_config,
+    require_credentials,
+    resolve_config_target,
+    write_config_template,
+)
 from yingdao_rpa.errors import ConfigError
 
 
@@ -143,3 +149,21 @@ def test_write_config_template_force_overwrites(tmp_path):
     write_config_template("project", cwd=tmp_path, force=True)
 
     assert "accessKeyId" in path.read_text(encoding="utf-8")
+
+
+def test_resolve_config_target_does_not_create_file(tmp_path):
+    target, scope = resolve_config_target("project", cwd=tmp_path)
+
+    assert scope == "project"
+    assert target == tmp_path / ".yingdao" / "config.json"
+    assert not target.exists()
+
+
+def test_resolve_config_target_defaults_to_project_when_git_exists(tmp_path):
+    (tmp_path / ".git").mkdir()
+
+    target, scope = resolve_config_target(cwd=tmp_path)
+
+    assert scope == "project"
+    assert target == tmp_path / ".yingdao" / "config.json"
+    assert not target.exists()

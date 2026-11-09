@@ -198,10 +198,12 @@ def test_account_lookup_failure_without_suffix_propagates():
 def test_uuid_query_skips_account_name_and_lookup():
     client = FakeClient()
 
-    run_info(args(uuid="robot-uuid-1"), make_runtime(client=client))
+    result = run_info(args(uuid="robot-uuid-1"), make_runtime(client=client))
 
     assert robot_calls(client)[0]["body"] == {"robotClientUuid": "robot-uuid-1"}
     assert len(client.calls) == 1
+    assert result["data"]["requested"]["resolvedBy"] == "uuid"
+    assert result["data"]["requested"]["robotClientUuid"] == "robot-uuid-1"
 
 
 def test_suffix_with_uuid_is_rejected():

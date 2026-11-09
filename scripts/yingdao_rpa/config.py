@@ -248,13 +248,15 @@ def require_credentials(config: Config) -> None:
             )
 
 
-def write_config_template(
+def resolve_config_target(
     scope: str | None = None,
     *,
     cwd: Path | None = None,
-    force: bool = False,
 ) -> tuple[Path, str]:
-    """生成配置模板，返回 (路径, 作用域)。已有文件默认拒绝覆盖。"""
+    """解析配置模板的目标路径与作用域，不产生任何写入。
+
+    `--dry-run` 需要在不落盘的条件下展示目标路径，因此把解析逻辑独立出来。
+    """
     if scope not in (None, "project", "user"):
         raise ConfigError(f"未知的 scope：{scope}", hint="可选值为 project 或 user。")
 
@@ -263,6 +265,17 @@ def write_config_template(
         scope = "project" if (cwd / ".git").exists() else "user"
 
     target = cwd / CONFIG_DIRNAME / CONFIG_FILENAME if scope == "project" else user_config_path()
+    return target, scope
+
+
+def write_config_template(
+    scope: str | None = None,
+    *,
+    cwd: Path | None = None,
+    force: bool = False,
+) -> tuple[Path, str]:
+    """生成配置模板，返回 (路径, 作用域)。已有文件默认拒绝覆盖。"""
+    target, scope = resolve_config_target(scope, cwd=cwd)
     if target.exists() and not force:
         raise ConfigError(
             f"配置文件已存在，未覆盖：{target}",

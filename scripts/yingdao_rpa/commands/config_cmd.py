@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ..config import write_config_template
+from ..config import resolve_config_target, write_config_template
 from ..runtime import Runtime
 
 
@@ -24,6 +24,29 @@ def register(subparsers: argparse._SubParsersAction, common: argparse.ArgumentPa
 
 
 def run_init(args: argparse.Namespace, runtime: Runtime) -> dict:
+    target, scope = resolve_config_target(args.scope, cwd=Path.cwd())
+
+    if runtime.dry_run:
+        # 本地写盘预览：只展示目标路径与将要写入的内容概要，绝不创建文件
+        return {
+            "data": {
+                "kind": "request_preview",
+                "request": {
+                    "method": "WRITE",
+                    "url": str(target),
+                    "query": {},
+                    "body": {
+                        "action": "write-config-template",
+                        "scope": scope,
+                        "force": bool(args.force),
+                        "exists": target.exists(),
+                    },
+                    "headers": {},
+                },
+            },
+            "meta": {"base_url": runtime.config.base_url, "dry_run": True},
+        }
+
     path, scope = write_config_template(args.scope, cwd=Path.cwd(), force=args.force)
     return {
         "data": {"path": str(path), "scope": scope, "config_file": str(path)},

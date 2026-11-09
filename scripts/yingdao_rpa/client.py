@@ -276,6 +276,16 @@ class YingDaoClient:
             return payload
 
     # ------------------------------------------------------------ 干跑预览
+    @staticmethod
+    def _preview_headers(*, body: dict[str, Any] | None, need_token: bool) -> dict[str, str]:
+        """按真实请求的规则构造预览头部，保证 `headers` 字段恒定存在。"""
+        headers = {"Accept": "application/json"}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        if need_token:
+            headers["Authorization"] = "Bearer <accessToken>"
+        return headers
+
     def preview(
         self,
         method: str,
@@ -291,12 +301,10 @@ class YingDaoClient:
         默认对 query 与 body 递归掩码，只有调用方显式要求时才输出密钥原文，
         避免预览结果被贴进工单或日志后泄漏凭据。
         """
-        preview: dict[str, Any] = {
+        return {
             "method": method.upper(),
             "url": self.config.base_url + path,
             "query": sanitize_for_preview(query or {}, show_secrets=show_secrets),
             "body": sanitize_for_preview(body, show_secrets=show_secrets),
+            "headers": self._preview_headers(body=body, need_token=need_token),
         }
-        if need_token:
-            preview["headers"] = {"Authorization": "Bearer <accessToken>"}
-        return preview

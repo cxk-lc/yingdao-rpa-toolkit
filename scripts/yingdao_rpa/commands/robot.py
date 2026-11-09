@@ -115,6 +115,17 @@ def _requested(
     return data
 
 
+def _requested_by_uuid(robot_uuid: str) -> dict[str, Any]:
+    """`--uuid` 模式的解析记录：与名称模式保持一致的字段形状。"""
+    return {
+        "inputName": None,
+        "accountName": None,
+        "resolvedBy": "uuid",
+        "suffixApplied": False,
+        "robotClientUuid": robot_uuid,
+    }
+
+
 def _resolve_with_suffix(
     name: str,
     suffix: str,
@@ -289,7 +300,7 @@ def run_info(args: argparse.Namespace, runtime: Runtime) -> dict:
             raise ParamError("--uuid 不能为空")
         return _execute(
             {"robotClientUuid": robot_uuid},
-            {"robotClientUuid": robot_uuid},
+            _requested_by_uuid(robot_uuid),
             runtime,
         )
 

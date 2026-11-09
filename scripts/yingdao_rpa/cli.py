@@ -21,7 +21,7 @@ from .commands.common import build_common
 from .config import load_config
 from .errors import ApiError, NetworkError, ParamError, ToolError
 from .logging_setup import get_logger, setup_logging
-from .output import emit, make_error, make_success, now_iso
+from .output import emit, make_error, make_success, normalize_meta, now_iso
 from .runtime import Runtime
 
 logger = get_logger("cli")
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             command=str(args.command),
             data=result.get("data"),
             warnings=[] if args.quiet else list(result.get("warnings") or []),
-            meta=result.get("meta") or client.last_meta.to_dict(),
+            meta=normalize_meta(result.get("meta") or client.last_meta.to_dict()),
             started_at=started_at,
             elapsed_ms=int((time.monotonic() - started) * 1000),
         )

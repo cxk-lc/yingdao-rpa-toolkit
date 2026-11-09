@@ -24,7 +24,11 @@ def build_common() -> argparse.ArgumentParser:
     )
     common.add_argument("--timeout", type=float, help="单次 HTTP 超时秒数，默认 30")
     common.add_argument("--format", choices=["json", "text"], default="json", help="输出格式，默认 json")
-    common.add_argument("--dry-run", action="store_true", help="只输出请求预览，不发送请求")
+    common.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="只输出预览：不发请求、不写盘（config init 仅显示目标路径）",
+    )
     common.add_argument(
         "--show-secrets",
         action="store_true",

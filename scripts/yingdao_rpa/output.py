@@ -20,6 +20,20 @@ from .utils import now_iso
 
 SCHEMA_VERSION = 1
 
+META_KEYS = ("base_url", "api_code", "api_success", "request_id", "dry_run")
+
+
+def normalize_meta(meta: dict[str, Any] | None) -> dict[str, Any]:
+    """把 meta 补齐为契约字段，缺失的键统一为 `None`。
+
+    `--dry-run` 与本地命令未发请求，`api_code` / `api_success` / `request_id`
+    在 JSON 中显式为 `null`，避免调用方因字段缺席而误判。
+    """
+    source = dict(meta or {})
+    normalized = {key: source.pop(key, None) for key in META_KEYS}
+    normalized.update(source)
+    return normalized
+
 
 def make_success(
     *,
@@ -64,6 +78,33 @@ def make_error(
     }
 
 
+def _render_preview(data: dict[str, Any]) -> str:
+    """预览形态的人读输出：优先展示请求要素，不再落入各命令的常规渲染分支。"""
+    request = data.get("request") or {}
+    method = str(request.get("method") or "")
+    target = request.get("url")
+    action = "未写入文件" if method == "WRITE" else "未发送请求"
+    lines = [f"[预览] {action}：{method} {target}"]
+
+    query = request.get("query")
+    if isinstance(query, dict) and query:
+        lines.append("query=" + json.dumps(query, ensure_ascii=False))
+    body = request.get("body")
+    if body is not None:
+        lines.append("body=" + json.dumps(body, ensure_ascii=False, indent=2))
+
+    followup = data.get("followup")
+    if isinstance(followup, dict):
+        lines.append(
+            f"后续请求：{followup.get('method')} {followup.get('url')} "
+            f"body={json.dumps(followup.get('body'), ensure_ascii=False)}"
+        )
+    fallback = data.get("fallback")
+    if fallback:
+        lines.append("回退：" + json.dumps(fallback, ensure_ascii=False))
+    return "\n".join(lines)
+
+
 def render_text(payload: dict[str, Any]) -> str:
     if not payload.get("ok"):
         error = payload.get("error") or {}
@@ -80,6 +121,10 @@ def render_text(payload: dict[str, Any]) -> str:
 
     data = payload.get("data") or {}
     command = str(payload.get("command") or "")
+
+    # 预览必须最先判定：否则会落入各命令的常规分支，出现"鉴权成功""无应用"等误导性文案
+    if isinstance(data, dict) and data.get("kind") == "request_preview":
+        return _render_preview(data)
 
     if command == "config show":
         keys = [
@@ -101,10 +146,12 @@ def render_text(payload: dict[str, Any]) -> str:
         return f"已生成配置模板：{data.get('path')}（scope={data.get('scope')}）"
 
     if command == "auth check":
+        expires = data.get("expires_in")
+        expires_text = f"{expires}s" if expires is not None else "-"
         return (
-            f"鉴权成功  base_url={data.get('base_url')}  "
-            f"expires_in={data.get('expires_in')}s  source={data.get('source')}  "
-            f"token={data.get('token_masked')}"
+            f"鉴权成功  base_url={data.get('base_url') or '-'}  "
+            f"expires_in={expires_text}  source={data.get('source') or '-'}  "
+            f"token={data.get('token_masked') or '-'}"
         )
 
     if command == "auth token":
@@ -239,11 +286,6 @@ def render_text(payload: dict[str, Any]) -> str:
             return "  ".join(parts)
         if data.get("jobUuid"):
             return f"jobUuid={data['jobUuid']}  idempotent={data.get('idempotentFlag')}"
-
-    if isinstance(data, dict) and data.get("kind") == "request_preview":
-        request = data.get("request") or {}
-        body = json.dumps(request.get("body"), ensure_ascii=False, indent=2)
-        return f"{request.get('method')} {request.get('url')}\n{body}"
 
     return json.dumps(payload, ensure_ascii=False, indent=2)
 

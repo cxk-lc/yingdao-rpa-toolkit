@@ -276,3 +276,26 @@ def test_preview_without_query_keeps_null_body(fake_config):
 
     assert preview["query"] == {}
     assert preview["body"] is None
+
+
+def test_preview_headers_present_without_token(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview(
+        "GET",
+        "/token",
+        query={"accessKeyId": "ak-12345678"},
+        need_token=False,
+    )
+
+    assert preview["headers"] == {"Accept": "application/json"}
+
+
+def test_preview_headers_include_content_type_and_authorization(fake_config):
+    client = YingDaoClient(fake_config)
+
+    preview = client.preview("POST", "/job", body={"robotUuid": "app-1"})
+
+    assert preview["headers"]["Accept"] == "application/json"
+    assert preview["headers"]["Content-Type"] == "application/json"
+    assert preview["headers"]["Authorization"] == "Bearer <accessToken>"
