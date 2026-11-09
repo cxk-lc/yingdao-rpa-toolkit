@@ -3,6 +3,56 @@
 > 用途：为每个对外发布的版本留存可追溯记录（阶段五「发布子流程（可选）」的产出物）。
 > 归档位置：`docs/release-record.md`；每个版本追加一节。
 
+## v0.1.1 · 2026-11-09
+
+### 1. 版本号
+
+- 版本号：v0.1.1
+- 发布方式：立即发布（GitHub 远端）
+- 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
+- GitHub Release：https://github.com/cxk-lc/yingdao-rpa-toolkit/releases/tag/v0.1.1
+- 验收代码 commit：`cacc9c1`（新增应用/任务查询与文档）
+- tag 指向 commit：`v0.1.1` 指向本发布记录所在 commit
+- 是否已推送远端：是（`main` 与 `v0.1.1`，发布后校验）
+
+### 2. 变更摘要
+
+- 新增 `app list`（3.2）：按 appId/名称/所有者筛选应用，支持页码翻页。
+- 新增 `app runs`（3.3）：按应用或时间查运行记录，`minId` 游标分页；本地限制 7 天跨度。
+- 新增 `robot tasks`（4.1）：按应用/机器人/计划/状态/触发时间查任务队列与历史 job，`next/pre` 游标翻页。
+- README 增加「已直接支持的接口工具」表与「其他接口的临时调用」说明。
+- 接口文档顶部补充官方文档链接 https://www.yingdao.com/yddoc/rpa/zh-CN/971279704374095872 。
+- 版本号统一升级为 `0.1.1`；测试增至 187 项。
+
+### 3. 验证证据
+
+- 测试：`python -m pytest -q` → **187 passed**（2026-11-09）。
+- 人工验收：`docs/acceptance-checklist-v0.1.1.md` 结论「通过」，验收人「用户（发布指令确认）」，日期 2026-11-09。
+- 真实接口抽样：
+  - `app list --size 1`：成功，`page.total=1012`。
+  - `app runs` 7 天范围、`size=2`、`max-pages=3`：3 页、6 条唯一记录，游标正常推进。
+  - `robot tasks` `size=2`、`max-pages=3`：3 页、6 条，状态中文映射正常。
+
+### 4. 已知问题
+
+- 自动化测试全部离线；真实 `job start` / `job query` 的失败终态未纳入 AI 自测，依赖人工验收覆盖。
+- 远端仓库当前为 **public**；如需私有，需在 GitHub 仓库设置中调整可见性。
+- `job start --account-name` 仍按传入值使用，不参与机器人名称的 `loginAccount` 自动补全。
+- `app runs` 单次时间跨度受接口限制为 7 天，超出时由 CLI 本地拦截。
+
+### 5. 回滚指令
+
+```bash
+# 回退到上一个稳定版本
+git checkout v0.1.0
+
+# 撤销 v0.1.1 远端 tag（仅在需要撤回发布时）
+git push origin :refs/tags/v0.1.1
+
+# 撤销本地 tag
+git tag -d v0.1.1
+```
+
 ## v0.1.0 · 2026-11-06
 
 ### 1. 版本号

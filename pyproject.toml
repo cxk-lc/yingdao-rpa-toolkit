@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yingdao-rpa-toolkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "影刀 RPA 开放 API 命令行工具包（WorkBuddy Skill，运行时零第三方依赖）"
 readme = "README.md"
 requires-python = ">=3.10"
