@@ -11,8 +11,9 @@
 - 发布方式：立即发布（GitHub 远端）
 - 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
 - GitHub Release：https://github.com/cxk-lc/yingdao-rpa-toolkit/releases/tag/v0.1.1
-- Release 资产：`yingdao-rpa-toolkit-v0.1.1.zip`（145,246 字节）
-- 资产 SHA256：`fcd200a5cf307d05721196cf07fe8b8a805b12291893cefcdad9b778ac4ed505`
+- Release 资产：`yingdao-rpa-toolkit-v0.1.1.zip`（66,067 字节）
+- 资产 SHA256：`0904fbd80d85b18179a581b01cdc317211b85636aed28ca9cfe19918c4938191`
+- Skill 包内容：`SKILL.md`、`scripts/`、`references/`、`config.example.json`、`.env.example`、`requirements.txt`、`LICENSE`；不含仓库级 `README/USAGE/docs/tests/AGENTS` 与厂商接口文档。
 - 验收代码 commit：`cacc9c1`（新增应用/任务查询与文档）
 - tag 指向 commit：`e0d9f29`（v0.1.1 发布提交；本记录为发布后补记，仅追加资产信息）
 - 是否已推送远端：是（`main` 与 `v0.1.1`）
@@ -35,7 +36,7 @@
   - `app runs` 7 天范围、`size=2`、`max-pages=3`：3 页、6 条唯一记录，游标正常推进。
   - `robot tasks` `size=2`、`max-pages=3`：3 页、6 条，状态中文映射正常。
 - 远端校验：`git ls-remote origin` 可见 `refs/heads/main` 与 `refs/tags/v0.1.1`。
-- Release 资产校验：从 GitHub Release 重新下载 `yingdao-rpa-toolkit-v0.1.1.zip`，SHA256 与本地构建一致。
+- Release 资产校验：从 GitHub Release 重新下载 `yingdao-rpa-toolkit-v0.1.1.zip`，SHA256 与本地白名单构建一致；压缩包内无 `tests/`、`docs/`、`AGENTS.md`、`README.md`、`USAGE.md`、`pyproject.toml` 与厂商接口文档。
 
 ### 4. 已知问题
 

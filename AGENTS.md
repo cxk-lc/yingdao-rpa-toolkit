@@ -16,6 +16,7 @@
 - 技术栈：Python 3.10 / 标准库 `urllib` + `argparse` + `logging` / pytest（仅开发）
 - 运行命令：`python scripts/yd.py --help`
 - 测试命令：`python -m pytest -q`
+- 发布包命令：`python tools/package_skill.py --ref <tag> --output .workbuddy/dist/yingdao-rpa-toolkit-<tag>.zip`
 - 本机解释器：`D:/Program Files/miniconda3/envs/python_3_10/python.exe`
 - 目录说明：
   - `docs/`：产品设计（product-design.md）与技术方案（tech-design.md）、验收清单

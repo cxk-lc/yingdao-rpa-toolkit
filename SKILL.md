@@ -177,6 +177,8 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 资源索引
 
+> Skill 发布包只包含 `SKILL.md`、`scripts/`、`references/`、配置样例与 `LICENSE`；`docs/`、`tests/`、`README.md`、`USAGE.md` 等仓库级文件不随包分发。
+
 | 资源 | 路径 | 何时使用 |
 |---|---|---|
 | 主命令 | `scripts/yd.py` | 所有操作的唯一入口 |

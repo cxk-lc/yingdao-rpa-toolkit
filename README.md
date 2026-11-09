@@ -200,9 +200,9 @@ YD_ACCESS_TOKEN="$TOKEN" "$PY" scripts/yd.py job query --job-uuid <uuid>
 
 ## 作为技能安装
 
-- 目标目录名需与 SKILL.md 的 name 一致
-- 直接克隆仓库代码或者从release下载skill压缩包到本地并解压缩，然后将代码文件夹整个放到智能体工作台的技能目录中
-- 不知道工作台的skill目录可以直接问智能体，或者直接让智能体帮你安装
+- 目标目录名需与 SKILL.md 的 name 一致。
+- 推荐直接让智能体安装（见下方提示词）。
+- Release 的 skill 包仅包含运行所需文件：`SKILL.md`、`scripts/`、`references/`、`config.example.json`、`.env.example`、`requirements.txt`、`LICENSE`；`README.md`、`USAGE.md`、`docs/`、`tests/`、`AGENTS.md` 等仓库文件不在包内，完整文档见仓库。
 
 ### 安装提示词
 
