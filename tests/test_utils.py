@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from yingdao_rpa.utils import parse_timestamp
+from yingdao_rpa.utils import parse_datetime_text, parse_timestamp
 
 
 def test_int_passthrough():
@@ -47,3 +47,21 @@ def test_millisecond_timestamp_is_rejected():
 def test_invalid_value_reports_field():
     with pytest.raises(ValueError, match="过期时间"):
         parse_timestamp("2026/01/01", field="过期时间")
+
+
+def test_datetime_text_normalizes_date():
+    assert parse_datetime_text("2026-01-01") == "2026-01-01 00:00:00"
+
+
+def test_datetime_text_normalizes_datetime():
+    assert parse_datetime_text("2026-01-01 12:30") == "2026-01-01 12:30:00"
+
+
+def test_datetime_text_empty():
+    assert parse_datetime_text(None) is None
+    assert parse_datetime_text("  ") is None
+
+
+def test_datetime_text_invalid():
+    with pytest.raises(ValueError, match="开始时间"):
+        parse_datetime_text("2026/01/01", field="开始时间")

@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import argparse
 
-from . import account, auth, config_cmd, job, robot
+from . import account, app, auth, config_cmd, job, robot
 
-MODULES = (account, auth, config_cmd, job, robot)
+MODULES = (account, app, auth, config_cmd, job, robot)
 
 
 def register_all(

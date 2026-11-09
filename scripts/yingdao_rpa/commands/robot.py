@@ -18,9 +18,17 @@ from ..accounts import ACCOUNT_SUFFIX_HINT, resolve_account_name
 from ..errors import ApiError, ParamError, ToolError
 from ..logging_setup import get_logger
 from ..runtime import Runtime
+from ..utils import parse_datetime_text
 from .account import ACCOUNT_LIST_PATH, LOOKUP_PAGE_SIZE, match_accounts, query_accounts
+from .job import APP_STATUS_CODES, APP_STATUS_NAMES
 
 ROBOT_QUERY_PATH = "/oapi/dispatch/v2/client/query"
+TASK_LIST_PATH = "/oapi/dispatch/v2/job/list"
+
+DEFAULT_TASK_SIZE = 20
+MAX_TASK_SIZE = 100
+DEFAULT_TASK_MAX_PAGES = 50
+TASK_DIRECTIONS = ("next", "pre")
 
 ROBOT_STATUS_NAMES = {
     "connected": "已连接",
@@ -62,6 +70,30 @@ def register(subparsers: argparse._SubParsersAction, common: argparse.ArgumentPa
         help="本次使用的企业账号后缀，如 @csqy1；显式指定后跳过企业账号查询",
     )
     info.set_defaults(handler=run_info, command="robot info")
+
+    tasks = actions.add_parser("tasks", parents=[common], help="查询机器人任务队列与历史记录")
+    tasks.add_argument("--app-id", "--robot-uuid", dest="app_id", help="应用 uuid（接口字段 robotUuid）")
+    tasks.add_argument("--robot-client-uuid", help="机器人 uuid")
+    tasks.add_argument("--schedule-uuid", help="计划 uuid")
+    tasks.add_argument(
+        "--status",
+        action="append",
+        metavar="CODE",
+        help="运行状态，可重复或逗号分隔：" + " / ".join(APP_STATUS_CODES),
+    )
+    tasks.add_argument("--trigger-begin", help="触发时间起点，YYYY-MM-DD [HH:MM:SS]")
+    tasks.add_argument("--trigger-end", help="触发时间终点，YYYY-MM-DD [HH:MM:SS]")
+    tasks.add_argument("--cursor-id", type=int, help="游标 id；第一页不传")
+    tasks.add_argument("--direction", choices=TASK_DIRECTIONS, help="翻页方向，默认 next")
+    tasks.add_argument(
+        "--size", type=int, help=f"每页条数，默认 {DEFAULT_TASK_SIZE}，最大 {MAX_TASK_SIZE}"
+    )
+    tasks.add_argument("--all", action="store_true", help="沿当前方向自动翻页")
+    tasks.add_argument(
+        "--max-pages", type=int, help=f"--all 时最多拉取页数，默认 {DEFAULT_TASK_MAX_PAGES}"
+    )
+    tasks.add_argument("--query-api", action="store_true", help="查询控制台 API 执行记录列表")
+    tasks.set_defaults(handler=run_tasks, command="robot tasks")
 
 
 def _requested(
@@ -281,3 +313,211 @@ def run_info(args: argparse.Namespace, runtime: Runtime) -> dict:
 
     account_name, requested = _lookup_account(name, runtime)
     return _execute({"accountName": account_name}, requested, runtime)
+
+
+def _parse_task_statuses(values: list[str] | None) -> list[str]:
+    result: list[str] = []
+    for raw in values or []:
+        for item in str(raw).split(","):
+            code = item.strip().lower()
+            if not code:
+                continue
+            if code not in APP_STATUS_CODES:
+                raise ParamError(
+                    f"未知运行状态：{item}",
+                    hint="可选值：" + " / ".join(APP_STATUS_CODES),
+                )
+            if code not in result:
+                result.append(code)
+    return result
+
+
+def _task_time(value: str | None, field: str) -> str | None:
+    try:
+        return parse_datetime_text(value, field=field)
+    except ValueError as exc:
+        raise ParamError(str(exc)) from exc
+
+
+def _max_pages(value: int | None) -> int:
+    pages = value if value is not None else DEFAULT_TASK_MAX_PAGES
+    if pages < 1:
+        raise ParamError(f"--max-pages 必须大于等于 1，当前为：{pages}")
+    return pages
+
+
+def build_tasks_body(args: argparse.Namespace) -> tuple[dict[str, Any], int, str]:
+    size = args.size if args.size is not None else DEFAULT_TASK_SIZE
+    if not (1 <= size <= MAX_TASK_SIZE):
+        raise ParamError(f"--size 必须在 1~{MAX_TASK_SIZE} 之间，当前为：{size}")
+
+    direction = args.direction or "next"
+    if direction == "pre" and args.cursor_id is None:
+        raise ParamError("--direction pre 必须同时提供 --cursor-id")
+
+    body: dict[str, Any] = {"cursorDirection": direction, "size": size}
+    if args.app_id and args.app_id.strip():
+        body["robotUuid"] = args.app_id.strip()
+    if args.robot_client_uuid and args.robot_client_uuid.strip():
+        body["robotClientUuid"] = args.robot_client_uuid.strip()
+    if args.schedule_uuid and args.schedule_uuid.strip():
+        body["scheduleUuid"] = args.schedule_uuid.strip()
+
+    statuses = _parse_task_statuses(args.status)
+    if statuses:
+        body["statusList"] = statuses
+
+    begin = _task_time(args.trigger_begin, "触发时间起点")
+    end = _task_time(args.trigger_end, "触发时间终点")
+    if begin and end and begin > end:
+        raise ParamError("触发时间起点不能晚于终点")
+    if begin:
+        body["triggerTimeBegin"] = begin
+    if end:
+        body["triggerTimeEnd"] = end
+
+    if args.cursor_id is not None:
+        body["cursorId"] = args.cursor_id
+    if args.query_api:
+        body["queryApi"] = True
+    return body, size, direction
+
+
+def _task_data(payload: dict[str, Any]) -> dict[str, Any]:
+    data = payload.get("data")
+    return data if isinstance(data, dict) else {}
+
+
+def _task_cursor(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "hasData": data.get("hasData"),
+        "nextId": data.get("nextId"),
+        "preId": data.get("preId"),
+        "cursorDirection": data.get("cursorDirection"),
+    }
+
+
+def _task_view(row: dict[str, Any]) -> dict[str, Any]:
+    view = dict(row)
+    status = str(view.get("status") or "")
+    view["statusName"] = APP_STATUS_NAMES.get(status, status)
+    return view
+
+
+def _task_result(
+    items: list[dict[str, Any]],
+    cursor: dict[str, Any],
+    body: dict[str, Any],
+    *,
+    requested: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "kind": "robot_task_list",
+        "items": items,
+        "count": len(items),
+        "cursor": cursor,
+        "filters": {
+            key: value
+            for key, value in body.items()
+            if key not in ("cursorId", "cursorDirection", "size")
+        },
+        "requested": requested,
+    }
+
+
+def run_tasks(args: argparse.Namespace, runtime: Runtime) -> dict:
+    body, size, direction = build_tasks_body(args)
+    max_pages = _max_pages(args.max_pages)
+
+    if runtime.dry_run:
+        return {
+            "data": {
+                "kind": "request_preview",
+                "request": runtime.client.preview(
+                    "POST", TASK_LIST_PATH, body=body, show_secrets=runtime.show_secrets
+                ),
+                "requested": {
+                    "all": args.all,
+                    "maxPages": max_pages if args.all else None,
+                },
+            },
+            "meta": {"base_url": runtime.config.base_url, "dry_run": True},
+        }
+
+    if not args.all:
+        payload = runtime.client.request("POST", TASK_LIST_PATH, body=body)
+        data = _task_data(payload)
+        rows = data.get("dataList") if isinstance(data.get("dataList"), list) else []
+        items = [_task_view(row) for row in rows if isinstance(row, dict)]
+        return {
+            "data": _task_result(
+                items,
+                _task_cursor(data),
+                body,
+                requested={
+                    "all": False,
+                    "cursorId": args.cursor_id,
+                    "direction": direction,
+                    "size": size,
+                },
+            ),
+            "meta": runtime.client.last_meta.to_dict(),
+        }
+
+    items: list[dict[str, Any]] = []
+    cursor: dict[str, Any] = {}
+    warnings: list[str] = []
+    seen: set[str] = set()
+    current = args.cursor_id
+    fetched_pages = 0
+
+    while True:
+        page_body = dict(body)
+        if current is not None:
+            page_body["cursorId"] = current
+        payload = runtime.client.request("POST", TASK_LIST_PATH, body=page_body)
+        data = _task_data(payload)
+        rows = data.get("dataList") if isinstance(data.get("dataList"), list) else []
+        cursor = _task_cursor(data)
+        fetched_pages += 1
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            key = str(row.get("id") if row.get("id") is not None else row.get("jobUuid"))
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append(_task_view(row))
+
+        has_data = cursor.get("hasData")
+        if has_data is False or not rows:
+            break
+
+        next_cursor = cursor.get("nextId") if direction == "next" else cursor.get("preId")
+        if next_cursor is None or next_cursor == current:
+            warnings.append("任务队列游标未前进，已停止，避免重复拉取")
+            break
+        if fetched_pages >= max_pages:
+            warnings.append(f"已达到 --max-pages={max_pages}，剩余记录未拉取")
+            break
+        current = next_cursor
+
+    result = _task_result(
+        items,
+        cursor,
+        body,
+        requested={
+            "all": True,
+            "cursorId": args.cursor_id,
+            "direction": direction,
+            "size": size,
+            "maxPages": max_pages,
+            "fetchedPages": fetched_pages,
+        },
+    )
+    return {
+        "data": result,
+        "warnings": warnings,
+        "meta": runtime.client.last_meta.to_dict(),
+    }

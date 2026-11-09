@@ -59,6 +59,26 @@ def parse_timestamp(value: str | int | None, *, field: str = "时间") -> int | 
     return int(parsed.timestamp())
 
 
+def parse_datetime_text(value: str | None, *, field: str = "时间") -> str | None:
+    """把常见日期写法规范成接口需要的 `YYYY-MM-DD HH:MM:SS`。"""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+
+    candidate = text.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise ValueError(
+            f"{field} 格式无法识别：{value}；支持 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS"
+        ) from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone()
+    return parsed.strftime("%Y-%m-%d %H:%M:%S")
+
+
 # 预览默认掩码：命中这些词根的字段整体隐藏，accessKeyId 这类标识保留首尾各 4 位
 FULL_MASK_WORDS = ("secret", "password", "token", "credential")
 PARTIAL_MASK_WORDS = ("accesskeyid", "accesskey", "appkey")

@@ -111,6 +111,77 @@ def render_text(payload: dict[str, Any]) -> str:
         # 该命令的 purpose 就是输出可直接传递的 token 原文，便于 shell 管道消费
         return str(data.get("access_token") or "")
 
+    if command == "app list":
+        items = data.get("items") or []
+        lines = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                f"[{item.get('appTypeName') or item.get('appType') or '应用'}] "
+                f"{item.get('appName') or '-'}（{item.get('appId') or '-'}）  "
+                f"版本={item.get('version') or '-'}  "
+                f"所有者={item.get('ownerName') or '-'}"
+                f"（{item.get('ownerAccount') or '-'}）  "
+                f"参数={'支持' if item.get('supportParam') else '不支持'}  "
+                f"更新={item.get('updateTime') or '-'}"
+            )
+        if not lines:
+            lines.append("（无应用）")
+        page = data.get("page") or {}
+        if page.get("total") is not None:
+            lines.append(f"共 {page.get('total')} 个应用；本次已拉取 {len(items)} 个")
+        return "\n".join(lines)
+
+    if command == "app runs":
+        items = data.get("items") or []
+        lines = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                f"[{item.get('runStatusName') or item.get('runStatus') or '-'}] "
+                f"{item.get('appName') or '-'}  "
+                f"开始={item.get('startTime') or '-'}  "
+                f"结束={item.get('endTime') or '-'}  "
+                f"耗时={item.get('runningTime') if item.get('runningTime') is not None else '-'}s  "
+                f"触发={item.get('startModeName') or item.get('startMode') or '-'}  "
+                f"账号={item.get('userName') or '-'}"
+                + (f"  remark={item['remark']}" if item.get("remark") else "")
+            )
+        if not lines:
+            lines.append("（无运行记录）")
+        page = data.get("page") or {}
+        if page.get("total") is not None:
+            lines.append(f"共 {page.get('total')} 条；本次已拉取 {len(items)} 条")
+        return "\n".join(lines)
+
+    if command == "robot tasks":
+        items = data.get("items") or []
+        lines = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                f"[{item.get('statusName') or item.get('status') or '-'}] "
+                f"{item.get('robotName') or '-'} / {item.get('taskName') or '-'}  "
+                f"触发={item.get('triggerTime') or '-'}  "
+                f"开始={item.get('startTime') or '-'}  "
+                f"结束={item.get('endTime') or '-'}  "
+                f"机器人={item.get('robotClientName') or '-'}  "
+                f"job={item.get('jobUuid') or '-'}"
+                + (f"  remark={item['remark']}" if item.get("remark") else "")
+            )
+        if not lines:
+            lines.append("（无任务记录）")
+        cursor = data.get("cursor") or {}
+        if cursor:
+            lines.append(
+                f"hasData={cursor.get('hasData')}  nextId={cursor.get('nextId')}  "
+                f"preId={cursor.get('preId')}"
+            )
+        return "\n".join(lines)
+
     if command == "account list":
         items = data.get("items") or []
         lines = []

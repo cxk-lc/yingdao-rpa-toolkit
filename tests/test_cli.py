@@ -313,3 +313,82 @@ def test_account_list_rejects_invalid_arguments(cli_workspace, capsys, monkeypat
 
     assert code == 2
     assert payload["error"]["type"] == "ParamError"
+
+
+def test_app_list_dry_run_builds_body(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        ["app", "list", "--app-name", "测试", "--page", "2", "--size", "50", "--dry-run"],
+    )
+
+    assert code == 0
+    body = payload["data"]["request"]["body"]
+    assert body == {"page": "2", "size": "50", "appName": "测试"}
+
+
+def test_app_runs_requires_app_or_time(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(capsys, ["app", "runs", "--dry-run"])
+
+    assert code == 2
+    assert payload["error"]["type"] == "ParamError"
+
+
+def test_app_runs_dry_run_builds_body(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        ["app", "runs", "--app-id", "app-1", "--begin-date", "2026-01-01", "--dry-run"],
+    )
+
+    assert code == 0
+    body = payload["data"]["request"]["body"]
+    assert body["appId"] == "app-1"
+    assert body["minId"] == 0
+    assert body["beginDate"] == "2026-01-01 00:00:00"
+
+
+def test_robot_tasks_dry_run_builds_body(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        [
+            "robot",
+            "tasks",
+            "--app-id",
+            "app-1",
+            "--status",
+            "error,finish",
+            "--size",
+            "50",
+            "--dry-run",
+        ],
+    )
+
+    assert code == 0
+    body = payload["data"]["request"]["body"]
+    assert body["robotUuid"] == "app-1"
+    assert body["statusList"] == ["error", "finish"]
+    assert body["size"] == 50
+    assert body["cursorDirection"] == "next"
+
+
+def test_robot_tasks_pre_direction_requires_cursor(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys, ["robot", "tasks", "--direction", "pre", "--dry-run"]
+    )
+
+    assert code == 2
+    assert payload["error"]["type"] == "ParamError"

@@ -25,6 +25,18 @@ QUERY_PATH = "/oapi/dispatch/v2/job/query"
 logger = get_logger("job")
 
 TERMINAL_STATUSES = frozenset({"finish", "stopped", "error", "skipped", "cancel"})
+APP_STATUS_NAMES = {
+    "created": "已创建",
+    "waiting": "等待调度",
+    "running": "运行中",
+    "finish": "完成",
+    "stopping": "停止中",
+    "stopped": "已停止",
+    "error": "异常",
+    "skipped": "已跳过",
+    "cancel": "已取消",
+}
+APP_STATUS_CODES = tuple(APP_STATUS_NAMES)
 PARAM_TYPES = frozenset({"str", "int", "float", "bool", "file"})
 MAX_PARAMS_CHARS = 8000
 PRIORITIES = ("high", "middle", "low")
