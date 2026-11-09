@@ -10,6 +10,7 @@ from typing import Any
 from ..errors import ParamError
 from ..runtime import Runtime
 from ..utils import parse_datetime_text
+from .job import APP_STATUS_NAMES
 
 APP_LIST_PATH = "/oapi/app/open/query/list"
 APP_RUN_LIST_PATH = "/oapi/app/open/query/use/record/list"
@@ -238,10 +239,16 @@ def _run_result(
     *,
     next_min_id: int,
 ) -> dict[str, Any]:
+    views: list[dict[str, Any]] = []
+    for item in items:
+        view = dict(item)
+        status = str(view.get("runStatus") or "")
+        view["statusName"] = APP_STATUS_NAMES.get(status, status)
+        views.append(view)
     return {
         "kind": "app_run_list",
-        "items": items,
-        "count": len(items),
+        "items": views,
+        "count": len(views),
         "page": page,
         "nextMinId": next_min_id,
         "filters": {

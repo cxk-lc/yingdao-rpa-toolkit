@@ -240,6 +240,7 @@ def test_runs_single_page_sets_next_min_id():
     assert result["data"]["kind"] == "app_run_list"
     assert result["data"]["count"] == 2
     assert result["data"]["nextMinId"] == 100
+    assert result["data"]["items"][0]["statusName"] == "完成"
     assert client.calls[0]["body"]["minId"] == 0
 
 

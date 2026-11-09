@@ -140,7 +140,7 @@ def render_text(payload: dict[str, Any]) -> str:
             if not isinstance(item, dict):
                 continue
             lines.append(
-                f"[{item.get('runStatusName') or item.get('runStatus') or '-'}] "
+                f"[{item.get('runStatusName') or item.get('statusName') or item.get('runStatus') or '-'}] "
                 f"{item.get('appName') or '-'}  "
                 f"开始={item.get('startTime') or '-'}  "
                 f"结束={item.get('endTime') or '-'}  "
