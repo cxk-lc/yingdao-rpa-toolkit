@@ -39,7 +39,9 @@
 ├── references/
 │   ├── auth.md              # 配置与鉴权排查
 │   ├── account-list.md      # RPA 企业账号列表与筛选
+│   ├── app-list.md          # 应用列表与应用运行记录
 │   ├── robot-info.md        # 机器人状态与账号后缀
+│   ├── robot-tasks.md       # 机器人任务队列与历史 job
 │   └── output-contract.md   # JSON 结构与退出码
 └── tests/                   # 离线 pytest 用例
 ```
@@ -71,6 +73,13 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 # 5.2 查询 RPA 企业账号列表（可按关键词、类型、时间筛选）
 "$PY" scripts/yd.py account list --keyword 张三 --account-type basic
+
+# 5.3 找应用 / 查应用运行历史
+"$PY" scripts/yd.py app list --app-name 订单
+"$PY" scripts/yd.py app runs --app-id <appId> --begin-date 2026-11-02 --end-date 2026-11-09
+
+# 5.4 查机器人任务队列 / 历史 job
+"$PY" scripts/yd.py robot tasks --status error,finish --all
 
 # 6. 真实启动并拿 jobUuid（也可不传 token，让命令自行用凭据换取）
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
@@ -110,13 +119,14 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | `auth check`                                                                        | 验证凭据，输出脱敏 token 与有效期            |
 | `auth token`                                                                        | 获取完整 accessToken，供其它命令直接传入；不写文件 |
 | `robot info (--name <名称> \| --uuid <uuid>) [--suffix @企业标识]`                        | 查询单台机器人状态；名称缺 `@` 时先查企业账号补全     |
+| `robot tasks [--app-id ...] [--status ...] [--all]`                                   | 查询机器人任务队列与历史 job              |
 | `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选          |
+| `app list [--app-name ...] [--owner ...] [--all]`                                     | 分页查询应用列表，可用于找 `appId`            |
+| `app runs --app-id ... [--begin-date ...] [--end-date ...] [--all]`                   | 查询应用运行历史；应用与时间至少给一个，时间跨度≤7 天    |
 | `job start --app-id ... (--account-name \| --robot-group-uuid) ...`                 | 启动一次应用运行                        |
 | `job query --job-uuid ... [--wait]`                                                 | 查询运行状态与输出参数                     |
 
-|                                  |                                                                                            |
-| -------------------------------- | ------------------------------------------------------------------------------------------ |
-| 全局参数：`--dry-run`、\`--format json | text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout\`。 |
+全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
 
 ## Token 不落盘与跨命令传递
 
@@ -163,4 +173,4 @@ YD_ACCESS_TOKEN="$TOKEN" "$PY" scripts/yd.py job query --job-uuid <uuid>
 
 ## 当前边界
 
-已实现：配置管理、`auth check` / `auth token`、`robot info`、`account list`、`job start` / `job query` 的触发与查询闭环。机器人/应用/任务**列表**、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。
+已实现：配置管理、`auth check` / `auth token`、`robot info` / `robot tasks`、`account list`、`app list` / `app runs`、`job start` / `job query`。机器人全量列表、调度计划列表、重试/停止、运行日志、文件上传、工作队列、回调、常驻 HTTP 服务均**未实现**，按 `docs/product-design.md` 的推迟清单逐项迭代。

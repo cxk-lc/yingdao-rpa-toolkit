@@ -1,6 +1,6 @@
 # 影刀RPA工具包 · 使用说明
 
-> 适用版本：`yingdao-rpa-toolkit 0.1.0`｜8 条叶子命令｜走云端开放 API，不操作本机影刀客户端  
+> 适用版本：`yingdao-rpa-toolkit 0.1.0`｜11 条叶子命令｜走云端开放 API，不操作本机影刀客户端  
 > 命令速查见 README「命令清单」；本文讲**怎么用**：先讲怎么用一句话驱动它，再讲命令行逐条怎么敲。
 
 ---
@@ -11,13 +11,13 @@
 
 | 概念                  | 是什么                           | 从哪来                          | 用在哪                        |
 | ------------------- | ----------------------------- | ---------------------------- | -------------------------- |
-| **应用 appId**        | 你在影刀 Studio 里做好的流程，发版后才有 uuid | 影刀控制台「应用管理」里复制               | `job start --app-id`       |
+| **应用 appId**        | 你在影刀 Studio 里做好的流程，发版后才有 uuid | `app list`，或控制台「应用管理」复制        | `job start` / `app runs` / `robot tasks` |
 | **机器人 accountName** | 真正执行流程的那台机器账号，形如 `机器人7号@abc`  | 控制台「机器人管理」，或 `robot info` 回显 | `job start --account-name` |
-| **运行 jobUuid**      | 一次具体执行的编号                     | `job start` 返回               | `job query --job-uuid`     |
+| **运行 jobUuid**      | 一次具体执行的编号                     | `job start` 返回               | `job query` / `robot tasks` |
 
-一句话链路：**拿 appId（控制台）→ 确认机器人（robot info）→ 启动拿 jobUuid（job start）→ 查结果（job query）**。
+一句话链路：**找应用（app list）→ 确认机器人（robot info）→ 启动拿 jobUuid（job start）→ 查结果（job query / robot tasks）**。
 
-> ⚠️ 本版**没有应用列表接口**，`appId` 必须你自己从控制台复制，工具不会帮你找应用。机器人有 `robot info`，但没有全量列表——名称要从控制台或同事那里拿到。
+> `app list` 可以按名称/所有者筛选应用并拿到 `appId`；机器人仍只有 `robot info` 单台查询，没有全量列表。
 
 ---
 
@@ -30,11 +30,14 @@
 | `auth check`   | 用 AK/SK 换 token，验证凭据     | 只读           |
 | `auth token`   | 输出完整 accessToken，供其它命令传入 | 只读           |
 | `robot info`   | 查单台机器人的状态、IP、备注          | 只读           |
+| `robot tasks`  | 查机器人任务队列与历史 job           | 只读           |
 | `account list` | 分页查 RPA 企业账号             | 只读           |
+| `app list`     | 分页查应用列表，可用于找 `appId`       | 只读           |
+| `app runs`     | 查应用运行历史                   | 只读           |
 | `job start`    | 派发一次真实运行                 | **写：会真的跑流程** |
 | `job query`    | 查某次运行的状态与输出参数            | 只读           |
 
-没有的能力（本版边界）：应用/机器人/调度任务**列表**、重试、停止、运行日志、文件上传、工作队列、回调。需要这些时不要期待有隐藏参数。
+没有的能力（本版边界）：机器人全量列表、调度计划列表、重试、停止、运行日志、文件上传、工作队列、回调。需要这些时不要期待有隐藏参数。
 
 ---
 
@@ -133,6 +136,9 @@ python scripts/yd.py auth check
 | 「现在用的是哪份影刀配置」                      | `config show`，回 `source` 与 `config_path`            |
 | 「机器人7号在线吗 / 忙不忙」                   | `robot info --name 机器人7号`（缺 `@` 自动补全）               |
 | 「查一下企业里叫张三的 RPA 账号」                | `account list --keyword 张三`                         |
+| 「找一下发票下载这个应用」                      | `app list --app-name 发票下载`，回 appId 与版本              |
+| 「这个应用最近跑过吗 / 运行历史」                | `app runs --app-id <appId> --begin-date ... --end-date ...` |
+| 「机器人7号最近跑了哪些任务 / 有没有失败」            | `robot tasks --robot-client-uuid <uuid> --status error,finish` |
 | 「用影刀在机器人7号上跑 6b071a6e…，月份 2026-10」 | 干跑 → 确认 → `job start` → 回 jobUuid                   |
 | 「刚才那个任务跑完没，输出是什么」                  | `job query --job-uuid <uuid>`，回状态/耗时/inputs/outputs |
 | 「等它跑完再告诉我」                         | `job query --wait`，终态后汇报                            |
@@ -144,7 +150,7 @@ python scripts/yd.py auth check
 | ------------------------------------ | ------------------------------ |
 | 「用影刀在机器人7号上跑 6b071a6e…，参数月份=2026-10」 | ✅ 要素齐全，直接干活                    |
 | 「影刀跑一下 6b071a6e…」                    | ⚠️ 缺机器人，会先问或查配置默认值             |
-| 「用影刀跑一下发票下载」                         | ❌ 本版没有应用列表，查不到 appId；需要你给 uuid |
+| 「用影刀跑一下发票下载」                         | ✅ 会先用 `app list --app-name` 找 appId；多个匹配时让你确认 |
 | 「机器人7号上跑一下」                          | ❌ 缺 appId，无法执行                 |
 | 「用影刀处理一下数据」                          | ❌ 没触发：没有对象、没有动作                |
 | 「影刀 API 的 job/start 字段有哪些」           | ℹ️ 会答文档，不执行                    |
@@ -165,9 +171,9 @@ python scripts/yd.py auth check
 
 ### 3.7 它明确不做的事
 
-- 查应用列表 / 机器人列表 / 调度任务列表（本版没有这些接口封装）
+- 查机器人全量列表 / 调度计划列表（本版未封装）
 - 重试运行、停止运行
-- 查历史运行记录、下载运行日志
+- 查运行日志、下载运行产物（运行历史可用 `app runs` / `robot tasks`）
 - 上传文件、写工作队列、注册回调
 - 操作本机影刀客户端（登录、触发器、Studio 编辑）
 - RPA 账号的增删改、重置密码
@@ -196,7 +202,7 @@ YD auth check
 > 位置有讲究：项目级配置靠「从当前目录向上找 `.yingdao/config.json`」，所以要在**你自己的项目目录**里执行，别 `cd` 到别处。  
 > `pip install -e .` 之后可以省掉前缀，直接用 `yd` 命令。
 
-### 4.2 八条命令速查
+### 4.2 十一条命令速查
 
 ```bash
 YD config init [--scope project|user] [--force]
@@ -206,9 +212,15 @@ YD auth check
 YD auth token
 
 YD robot info (--name <名称> | --uuid <uuid>) [--suffix @企业标识]
+YD robot tasks [--app-id <appId>] [--robot-client-uuid <uuid>] \
+  [--status error,finish] [--trigger-begin ...] [--all] [--size 20]
 
 YD account list [--keyword 关键词] [--phone 手机号] \
   [--account-type basic|senior]... [--page 1] [--size 20] [--all] [--max-pages 50]
+
+YD app list [--app-id <appId>] [--app-name 名称] [--owner 账号] [--all]
+YD app runs (--app-id <appId> | --begin-date <日期> --end-date <日期>) \
+  [--min-id 0] [--size 30] [--all]
 
 YD job start --app-id <appId> (--account-name <机器人名> | --robot-group-uuid <uuid>) \
   [--param 名称=值[:类型]]... [--params-file 参数.json] [--dry-run]
@@ -267,7 +279,7 @@ YD robot info --uuid <robotClientUuid>           # uuid 会随调度模式切换
 3. 一条都没匹配到 → 回退配置里的 `enterpriseSuffix`；
 4. 既没匹配也没配后缀 → 本地拦截，要求补全名称。
 
-输出 `data.robot` 含 `status`、`statusName`、`online`、`idle`、`clientIp`、`machineName` 等，`data.requested.resolvedBy` 告诉你名称是怎么补全的（`input` / `account` / `suffix`）。
+输出 `data.robot` 含 `status`、`statusName`、`online`、`idle`、`clientIp`、`description`、`remark` 等，`data.requested.resolvedBy` 告诉你名称是怎么补全的（`input` / `account` / `suffix`）。
 
 状态含义：
 
@@ -296,6 +308,60 @@ YD account list --latest-login-begin "2026-01-01" --latest-login-end "2026-11-06
 | `--all` / `--max-pages`                          | 自动翻页，默认最多 50 页                                        |
 
 返回含手机号等个人信息，只在你需要的范围内使用，别粘到公开文档或日志里。
+
+#### app list
+
+```bash
+YD app list --app-name 订单
+YD app list --owner zhangsan@corp --all --size 100
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--app-id` / `--app-name` | 应用 ID 精确匹配 / 名称模糊匹配 |
+| `--owner` | 所有者账号，精确匹配 |
+| `--page` / `--size` | 默认 1 / 30，`size` 上限 100 |
+| `--all` / `--max-pages` | 自动翻页，默认最多 50 页 |
+
+返回 `appId`、`appName`、`version`、`supportParam`、所有者、创建/更新时间。找 `job start` 需要的 `appId` 时优先用它。
+
+#### app runs
+
+```bash
+YD app runs --app-id <appId>
+YD app runs --begin-date 2026-11-02 --end-date 2026-11-09 --all --size 100
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--app-id` | 应用 ID；与时间筛选**至少给一个** |
+| `--begin-date` / `--end-date` | `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM:SS`；未给 appId 时必须同时提供 |
+| `--min-id` | 游标起始 id，默认 0 |
+| `--size` | 默认 30，上限 100 |
+| `--all` / `--max-pages` | 按 `minId` 自动翻页 |
+
+接口限制**时间跨度最多 7 天**，超过本地拦截（退出码 2）。`--all` 取上一页最大 `id` 作为下一轮 `minId`，并按 id 去重。
+
+#### robot tasks
+
+```bash
+YD robot tasks --status error,finish --all
+YD robot tasks --app-id <appId> --trigger-begin 2026-11-01 --trigger-end 2026-11-09
+YD robot tasks --direction pre --cursor-id 284065875470133295
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--app-id`（别名 `--robot-uuid`） | **应用 uuid**，接口字段 `robotUuid` |
+| `--robot-client-uuid` / `--schedule-uuid` | 机器人 uuid / 计划 uuid |
+| `--status` | 运行状态，可重复或逗号分隔 |
+| `--trigger-begin/end` | 触发时间范围 |
+| `--cursor-id` / `--direction` | 游标 id / `next`或`pre`；`pre` 必须带 cursor |
+| `--size` | 默认 20，上限 100 |
+| `--all` / `--max-pages` | 沿当前方向自动翻页 |
+| `--query-api` | 查询控制台 API 执行记录 |
+
+返回 `data.cursor`（`hasData/nextId/preId`）与 `data.items`；每条记录补了 `statusName`。
 
 #### job start
 
@@ -379,19 +445,26 @@ YD() { "$PY" scripts/yd.py "$@"; }
 YD config show
 YD auth check
 
-# 2. 确认机器人（名称缺 @ 时先补全）
+# 2. 找应用 appId（也可按 --owner 精确筛选）
+YD app list --app-name "订单" --format text
+
+# 3. 确认机器人（名称缺 @ 时先补全）
 YD robot info --name "机器人7号@abc" --format text
 
-# 3. 干跑核对参数
+# 4. 干跑核对参数
 YD job start --app-id <appId> --account-name "机器人7号@abc" \
   --param 月份=2026-10 --dry-run
 
-# 4. 真跑，拿 jobUuid
+# 5. 真跑，拿 jobUuid
 YD job start --app-id <appId> --account-name "机器人7号@abc" \
   --param 月份=2026-10
 
-# 5. 查结果（长流程建议分两次查，别让一条命令挂太久）
+# 6. 查结果（长流程建议分两次查，别让一条命令挂太久）
 YD job query --job-uuid <jobUuid> --wait --interval 30 --max-wait 1800
+
+# 7. 事后查历史
+YD app runs --app-id <appId> --begin-date 2026-11-02 --end-date 2026-11-09
+YD robot tasks --app-id <appId> --status error,finish
 ```
 
 
@@ -491,7 +564,7 @@ YD job start --app-id <appId> --account-name <机器人名> --dry-run --show-sec
 
 ---
 
-## 8. 本机实测快照（2026-11-06）
+## 8. 本机实测快照（2026-11-06 / 2026-11-09）
 
 用本仓库 CLI 跑只读命令的结果：
 
@@ -501,8 +574,11 @@ YD job start --app-id <appId> --account-name <机器人名> --dry-run --show-sec
 | `auth check`                  | 成功，`expires_in≈6600s`，`source=fetched`                                                                                    |
 | `robot info --name 机器人7号@abc` | `idle`（空闲），`ip=172.17.28.133`，`resolvedBy=input`                                                                          |
 | `account list --size 1`       | 成功，`page.total=27`（企业共 27 个 RPA 账号）                                                                                       |
+| `app list --size 1`           | 成功，`page.total=1012`（2026-11-09）                                                                                              |
+| `app runs`（7 天范围，`--size 1`） | 成功，返回 1 条，`nextMinId` 正常推进（2026-11-09）                                                                                        |
+| `robot tasks --size 1`        | 成功，`cursor.hasData=true`，状态 `finish`（2026-11-09）                                                                           |
 
-结论：配置、鉴权、机器人查询、账号查询四条链路都通，可以直接 `job start`。  
+结论：配置、鉴权、机器人、账号、应用、任务历史查询链路都通。  
 提醒：同环境里多数机器人处于 `offline`，派发前先 `robot info` 确认，别对着离线机器发。
 
 ---
@@ -517,5 +593,5 @@ YD job start --app-id <appId> --account-name <机器人名> --dry-run --show-sec
 | 项目级配置 | `<项目>/.yingdao/config.json`                                                 |
 | 用户级配置 | `~/.yingdao/config.json`                                                    |
 | 配置样例  | `config.example.json`、`.env.example`                                        |
-| 分项文档  | `references/auth.md`、`account-list.md`、`robot-info.md`、`output-contract.md` |
+| 分项文档  | `references/auth.md`、`account-list.md`、`app-list.md`、`robot-info.md`、`robot-tasks.md`、`output-contract.md` |
 | 设计文档  | `docs/product-design.md`、`docs/tech-design.md`                              |

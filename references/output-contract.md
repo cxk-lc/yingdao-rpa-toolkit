@@ -57,6 +57,9 @@
 | `auth check` | `{base_url, expires_in, expires_at, source, token_masked, config_source}` |
 | `auth token` | `{access_token, token_type, expires_in, expires_at, source, persisted:false, base_url}` |
 | `robot info` | `{kind:"robot", requested:{inputName,accountName,resolvedBy,suffixApplied,lookup?,fallback?}, robot:{...原始字段, statusName, online, idle}}` |
+| `robot tasks` | `{kind:"robot_task_list", items:[...statusName], count, cursor:{hasData,nextId,preId,cursorDirection}, filters, requested}` |
+| `app list` | `{kind:"app_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
+| `app runs` | `{kind:"app_run_list", items:[...], count, page, nextMinId, filters, requested}` |
 | `account list` | `{kind:"account_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
 | `job start` | `{kind:"job_start", jobUuid, idempotentFlag, request_id}`；加 `--wait` 时多一个 `job` |
 | `job query` | `{kind:"job", jobUuid, job}` |

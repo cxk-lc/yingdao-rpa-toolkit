@@ -41,6 +41,8 @@
 - **POST 重试的副作用**：`job/start` 非幂等，网络超时后重发可能重复启动。对策：仅对 429 退避重试；用户可传 `--idempotent-uuid` 获得服务端幂等保护。
 - **Windows 编码**：中文参数与控制台 GBK 冲突。对策：入口 `reconfigure(encoding="utf-8")`，文件读写显式 `encoding="utf-8"`。
 - **机器人名称补全**：机器人名称可能只给前缀，企业版需要 `@企业标识`。对策：先查 `account list` 取 `loginAccount`，再回退 `--suffix` / `enterpriseSuffix`；企业账号接口不可用时保留后缀回退路径，避免单点依赖。
+- **分页模型不统一**：应用列表用 page/size，应用运行记录用 `minId` 游标，机器人任务用 `cursorId + direction`。对策：三个命令各自实现翻页与去重；`--all` 遇到游标不前进或达到 `--max-pages` 必须停止并返回 warning。
+- **应用运行记录时间窗**：接口限制单次查询跨度 ≤7 天，文档未写明。对策：本地校验并提示分段查询。
 - **凭据泄漏**：日志、异常、`config show` 都可能带出 secret。对策：`Config.__repr__` 与 `config show` 统一脱敏；client 只记录 path 与 requestId。
 - **长参数**：超过约 8000 字符会被服务端拒绝。对策：本地预估 JSON 长度并拦截，提示拆批或 `type=file`。
 

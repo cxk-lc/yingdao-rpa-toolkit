@@ -21,7 +21,7 @@
   - `docs/`：产品设计（product-design.md）与技术方案（tech-design.md）、验收清单
   - `scripts/yd.py`：唯一 CLI 入口（薄壳）
   - `scripts/yingdao_rpa/`：核心包
-    - `cli.py` 参数解析与装配；`commands/` 每子命令一个模块（account/auth/config/job/robot）
+    - `cli.py` 参数解析与装配；`commands/` 每子命令一个模块（account/app/auth/config/job/robot）
     - `client.py` 影刀 API 封装（token/重试/错误分类）；`transport.py` HTTP 传输
     - `accounts.py` 企业版机器人账号后缀补全；`config.py` 配置管理；`errors.py` 异常与退出码；`logging_setup.py` 日志；`output.py` JSON 契约
   - `tests/`：pytest 离线用例
