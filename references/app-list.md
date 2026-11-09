@@ -90,7 +90,7 @@ python scripts/yd.py app runs --app-id <appId> --min-id 479746186064532771
 }
 ```
 
-运行状态沿用应用运行状态枚举：`created/waiting/running/finish/stopping/stopped/error/skipped/cancel`。接口不保证返回 `runStatusName`，文本模式会自动回退到 `runStatus`。
+运行状态沿用应用运行状态枚举：`created/waiting/running/finish/stopping/stopped/error/skipped/cancel`。接口不保证返回 `runStatusName`，工具会按枚举补充 `statusName`，文本模式优先使用中文名。
 
 ## 3. 注意事项
 
