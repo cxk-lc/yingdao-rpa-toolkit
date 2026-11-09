@@ -128,6 +128,46 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
 
+## 已直接支持的接口工具
+
+下表是当前 Skill **已稳定封装**的接口工具，参数校验、错误映射、JSON 输出与退出码均有测试覆盖：
+
+| 工具命令 | 接口文档 | 接口 | 用途 |
+|---|---|---|---|
+| `auth check` / `auth token` | 1.1 授权获取 token | `GET /oapi/token/v2/token/create` | 验证凭据 / 交付 accessToken |
+| `account list` | 2.2 查询 RPA 企业账号列表 | `GET /oapi/rpa/user/v1/list` | 分页查询企业账号 |
+| `app list` | 3.2 查询应用列表 | `POST /oapi/app/open/query/list` | 按 appId/名称/所有者筛选应用 |
+| `app runs` | 3.3 查询应用运行记录 | `POST /oapi/app/open/query/use/record/list` | 查询应用运行历史 |
+| `robot tasks` | 4.1 查询机器人任务队列 | `POST /oapi/dispatch/v2/job/list` | 查询任务队列与历史 job |
+| `robot info` | 4.2 查询机器人信息 | `POST /oapi/dispatch/v2/client/query` | 查询单台机器人状态 |
+| `job start` | 5.2 启动应用 | `POST /oapi/dispatch/v2/job/start` | 启动一次应用运行 |
+| `job query` | 5.3 查询应用运行结果 | `POST /oapi/dispatch/v2/job/query` | 查询运行状态与输出参数 |
+
+`config init/show` 是本地配置命令，不调用接口，因此不在表中。
+
+## 其他接口的临时调用
+
+**接口文档里有的接口，即使尚未被本 Skill 直接封装，也可以按文档临时调用**，例如停止/重试运行、文件上传、工作队列、回调等。
+
+```bash
+# 1. 取 token（不落盘）
+TOKEN=$(python scripts/yd.py auth token --format text)
+
+# 2. 按接口文档替换 method / path / body 后调用
+curl -X POST "https://api.yingdao.com/oapi/<按文档替换>" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{<按文档替换>}'
+```
+
+注意事项：
+
+- 临时调用绕过了本 Skill 的参数校验、错误分类和统一 JSON 契约，请求参数与错误处理需要自行负责。
+- token 只放在进程环境/变量中，不要写入文件、日志或提交到仓库。
+- 如果某个接口需要长期稳定使用，建议按 `scripts/yingdao_rpa/commands/` 的模块结构补成正式命令，并配测试与文档。
+
+接口文档入口：[影刀RPA开放API接口文档.md](./影刀RPA开放API接口文档.md)
+
 ## Token 不落盘与跨命令传递
 
 `auth token` 只把 token 放在当前进程内存并输出，**不会写任何缓存文件**。其它命令通过两种方式直接接收：
