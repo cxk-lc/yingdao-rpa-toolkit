@@ -51,7 +51,7 @@
 - 运行命令：`python scripts/yd.py --help`（或 `yd --help`）
 - 测试命令：`python -m pytest -q`
 - Python 路径：`D:/Program Files/miniconda3/envs/python_3_10/python.exe`
-- 验证工具（AI 自测所需）：pytest + CLI 冒烟（`--version`、`config show`、`auth token --dry-run`、`job start --dry-run`、无凭据 `auth check` 的退出码）
+- 验证工具（AI 自测所需）：pytest + CLI 冒烟（`--version`、`config show`、`auth token --dry-run`、`app list/app runs --dry-run`、`robot tasks --dry-run`、`job start --dry-run`、无凭据 `auth check` 的退出码）
 - 不依赖真实网络：client/transport 测试使用假传输对象；真实鉴权、取 token 与启动由人工验收。
 
 > 填写后请同步更新 `AGENTS.md` 的"项目信息"一节。
