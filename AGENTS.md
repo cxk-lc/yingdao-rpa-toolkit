@@ -23,7 +23,7 @@
   - `scripts/yd.py`：唯一 CLI 入口（薄壳）
   - `scripts/yingdao_rpa/`：核心包
     - `cli.py` 参数解析与装配；`commands/` 每子命令一个模块（account/app/auth/config/job/robot）
-    - `client.py` 影刀 API 封装（token/重试/错误分类）；`transport.py` HTTP 传输
+    - `client.py` 影刀 API 封装（token/重试/错误分类）；`transport.py` HTTP 传输；`scheduling.py` 机器人调度选择
     - `accounts.py` 企业版机器人账号后缀补全；`config.py` 配置管理；`errors.py` 异常与退出码；`logging_setup.py` 日志；`output.py` JSON 契约
   - `tests/`：pytest 离线用例
   - `references/`：技能子文档；根目录 `SKILL.md` 为技能入口

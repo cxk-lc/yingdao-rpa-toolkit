@@ -31,6 +31,7 @@
 │       ├── commands/        # 每个子命令一个模块
 │       ├── client.py        # 影刀 API 封装（token/重试/错误分类）
 │       ├── accounts.py      # 企业版账号后缀补全
+│       ├── scheduling.py    # 机器人调度规则（空闲/成功率/忙碌决策）
 │       ├── transport.py     # HTTP 传输层
 │       ├── config.py        # 四层配置合并与校验
 │       ├── errors.py        # 异常体系 ↔ 退出码
@@ -42,6 +43,7 @@
 │   ├── app-list.md          # 应用列表与应用运行记录
 │   ├── robot-info.md        # 机器人状态与账号后缀
 │   ├── robot-tasks.md       # 机器人任务队列与历史 job
+│   ├── robot-scheduling.md  # 机器人调度规则与忙碌决策
 │   └── output-contract.md   # JSON 结构与退出码
 └── tests/                   # 离线 pytest 用例
 ```
@@ -65,6 +67,10 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 "$PY" scripts/yd.py auth token
 
 # 5. 干跑：只输出请求预览，不发送
+"$PY" scripts/yd.py job start --app-id <appId> --auto-robot \
+  --param 月份=2026-10 --dry-run
+
+# 5.0 也可以明确指定机器人；忙碌时默认返回决策请求，不自动排队/改派
 "$PY" scripts/yd.py job start --app-id <appId> --account-name <机器人名> \
   --param 月份=2026-10 --dry-run
 
@@ -123,10 +129,45 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选          |
 | `app list [--app-name ...] [--owner ...] [--all]`                                     | 分页查询应用列表，可用于找 `appId`            |
 | `app runs --app-id ... [--begin-date ...] [--end-date ...] [--all]`                   | 查询应用运行历史；应用与时间至少给一个，时间跨度≤7 天    |
-| `job start --app-id ... (--account-name \| --robot-group-uuid) ...`                 | 启动一次应用运行                        |
+| `job start --app-id ... (--auto-robot \| --account-name ... \| --robot-group-uuid ...) [--queue-if-busy] ...` | 启动一次应用运行；自动选空闲机器人，忙碌时返回决策请求 |
 | `job query --job-uuid ... [--wait]`                                                 | 查询运行状态与输出参数                     |
 
 全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
+
+## 机器人调度规则（job start）
+
+| 场景 | 行为 |
+|---|---|
+| 指定 `--account-name` 且机器人空闲 | 直接使用该机器人 |
+| 指定机器人非空闲 | **不自动排队、不自动改派**；返回退出码 6 的 `dispatch_decision`，列出排队选项与空闲候选 |
+| 未指定机器人，使用 `--auto-robot` | 优先空闲；多个空闲按该应用历史成功次数最多，否则随机 |
+| 没有空闲机器人 | 返回 `no_idle_robot`，列出在线候选供用户选择排队 |
+
+```bash
+# 自动选择
+python scripts/yd.py job start --app-id <appId> --auto-robot
+
+# 指定机器人忙碌：先看决策
+python scripts/yd.py job start --app-id <appId> --account-name busy@corp
+
+# 用户确认排队后
+python scripts/yd.py job start --app-id <appId> --account-name busy@corp --queue-if-busy
+```
+
+`dispatch_decision` 的关键字段：
+
+```json
+{
+  "data": {
+    "kind": "dispatch_decision",
+    "reason": "specified_robot_busy",
+    "idleCandidates": [{"accountName": "idle@corp", "statusName": "空闲", "successCount": 12}],
+    "queueOption": {"accountName": "busy@corp", "flag": "--queue-if-busy"}
+  }
+}
+```
+
+Agent 应把 `idleCandidates` 交给用户选择，不得自行改派或排队。详细规则见 [`references/robot-scheduling.md`](references/robot-scheduling.md)。
 
 ## 已直接支持的接口工具
 

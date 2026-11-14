@@ -23,6 +23,7 @@ metadata:
 - 需要查 RPA 企业子账号列表，按关键词、手机号、账号类型或时间范围筛选（`account list`）。
 - 需要找应用 `appId`、查应用列表（`app list`）或应用运行历史（`app runs`）。
 - 需要查机器人任务队列/历史 job，按机器人、应用、状态、触发时间筛选（`robot tasks`）。
+- 启动应用时需要按空闲状态、历史成功次数自动选机器人，或处理指定机器人忙碌的决策（`job start --auto-robot`）。
 - 需要预览请求的 method / URL / query / body / headers（`--dry-run`，查询类命令均支持），先核对再提交。
 - 已经拿到 `jobUuid`，需要查状态、输出参数、失败原因或截图地址。
 - 需要轮询直到任务进入终态（`--wait`）。
@@ -60,6 +61,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 查应用列表 / 找 appId | `references/app-list.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" app list [--app-name ...]` |
 | 查应用运行历史 | `references/app-list.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" app runs (--app-id ... \| 时间范围)` |
 | 查机器人任务队列 / 历史 job | `references/robot-tasks.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" robot tasks [--status ...]` |
+| 启动前选机器人 / 处理忙碌 | `references/robot-scheduling.md` | `"$PY" "$SKILL_DIR/scripts/yd.py" job start --app-id ... --auto-robot` |
 | 触发一次应用运行 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job start ...` |
 | 查某次运行的状态/输出/失败原因 | 本文件「标准工作流」 | `"$PY" "$SKILL_DIR/scripts/yd.py" job query --job-uuid ...` |
 | 字段含义、退出码、JSON 结构 | `references/output-contract.md` | — |
@@ -123,6 +125,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `app list`：`--app-id` / `--app-name`（模糊）/ `--owner`；`--size` 最大 100，`--all` 按页码翻页。
 - `app runs`：`--app-id` 与时间范围至少给一个；只给时间时必须同时给起止；时间跨度最多 7 天；`--all` 按 `minId` 游标翻页。
 - `robot tasks`：`--app-id`（接口字段 robotUuid）/ `--robot-client-uuid` / `--status` / 触发时间；`--all` 沿 `next`/`pre` 游标翻页。
+- `job start --auto-robot`：未指定机器人时优先空闲；多个空闲按该应用历史成功次数最多，否则随机；`--queue-if-busy` 仅与 `--account-name` 同用。
 - `--dry-run`（全局）：只构造并输出预览，**不发请求、不写盘**；`config init --dry-run` 只显示目标路径与 `exists`，不会创建文件。
 - `--show-secrets`（全局）：仅在 `--dry-run` 预览中生效，放开密钥原文；默认掩码，非预览场景传了也不改变行为。
 
@@ -131,11 +134,12 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 1. **不得编造标识**：`appId`、`robotClientName`、`jobUuid` 必须来自用户明确提供或上游查询结果，不要猜测。
 2. **机器人名称要完整**：企业版账号形如 `ceshi1@csqy1`。用户只给前缀时，先显式 `--suffix`；否则用 `account list` 找对应 `loginAccount`，再回退配置 `enterpriseSuffix`；都没有就停下来让用户补充，**不要猜企业后缀**。
 3. **真实启动前先确认**：用户尚未在本轮明确给出「应用 + 机器人 + 参数」时，先复述计划并确认；首次执行先 `--dry-run`。
-4. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
-5. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
-6. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
-7. **未实现的能力不要假装有**：本版没有机器人全量列表、调度计划列表、重试/停止、运行日志接口，遇到这类需求直接说明并给出替代路径。
-8. **账号列表含个人信息**：`account list` 返回手机号等敏感数据，只在必要范围内展示，不要写入公开文档、日志或无关的共享位置。
+4. **忙碌不自动改派**：指定机器人非空闲时，`job start` 返回退出码 6 的 `dispatch_decision`，必须把 `idleCandidates` 给用户选择「排队」或「改派」；不得自行排队或换机器人。
+5. **两个成功要分开看**：接口是否成功看 `success`；任务是否成功看终态 `finish`。终态非 `finish` 时命令退出码为 5。
+6. **token 默认不外泄**：`auth check` 只输出脱敏 token。唯一例外是 `auth token`——它的用途就是交付完整 token，必须**直接传给下一条命令**（`--access-token` / `YD_ACCESS_TOKEN`），不得写入文件、日志或回复正文，也不得使用 `--save`。`--dry-run` 预览同样默认掩码（`secret`/`token` 类字段为 `***`，`accessKeyId` 为 `abcd****wxyz`）；只有用户明确要求核对原文时才加 `--show-secrets`。
+7. **不跨技能越界**：本地客户端操作走本地客户端类技能；结果排版走 `rpa-result-formatter`。
+8. **未实现的能力不要假装有**：本版没有机器人全量列表、调度计划列表、重试/停止、运行日志接口，遇到这类需求直接说明并给出替代路径。
+9. **账号列表含个人信息**：`account list` 返回手机号等敏感数据，只在必要范围内展示，不要写入公开文档、日志或无关的共享位置。
 
 ## 输出契约与退出码
 
@@ -160,6 +164,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ## 关键事实与易错点
 
 - `job start` 的 `robotUuid` 是 **应用 uuid**（appId），不是机器人 uuid。
+- `job start --auto-robot` 走 4.4 取空闲机器人、4.1 统计该应用近期成功次数；非空闲指定机器人返回退出码 6 的 `dispatch_decision`，需用户选择排队或改派。
 - `robot info` 的 `accountName` 必须是完整企业账号；`status` 为 `connected/idle/allocated/running/offline`，`online` 与 `idle` 是工具补充的派生字段。
 - `robot info --name` 不带 `@` 时会先查企业账号（最多 3 页 × 100 条），匹配 `loginAccount` 的 @ 前缀或账号 `name`；多个匹配会要求改用完整 `loginAccount`。
 - `accountName` 与 `robotClientGroupUuid` 互斥；两者都缺时任务不会执行，只会排队到超时。
@@ -176,7 +181,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 
 ## 当前版本边界
 
-已实现：`config init/show`、`auth check`、`auth token`、`robot info`、`robot tasks`、`account list`、`app list`、`app runs`、`job start`、`job query`。
+已实现：`config init/show`、`auth check`、`auth token`、`robot info`、`robot tasks`、`account list`、`app list`、`app runs`、`job start`（含自动选机器人与忙碌决策）、`job query`。
 未实现（后续迭代）：机器人全量列表、调度计划列表、`job retry/stop`、运行日志、文件上传、工作队列、回调、RPA 账号增删改/重置密码、HTTP 常驻服务。
 
 ## 资源索引
@@ -190,6 +195,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | 输出契约 | `references/output-contract.md` | 解析 JSON、确认退出码 |
 | 配置与鉴权 | `references/auth.md` | 配置凭据、token 失效排查 |
 | 机器人状态 | `references/robot-info.md` | 账号后缀规则、状态枚举、查不到机器人 |
+| 机器人调度规则 | `references/robot-scheduling.md` | 指定优先、忙碌决策、空闲成功率选择 |
 | 机器人任务队列 | `references/robot-tasks.md` | 游标翻页、状态筛选、任务字段 |
 | 企业账号列表 | `references/account-list.md` | 筛选条件、时间戳、分页与字段说明 |
 | 应用列表/运行记录 | `references/app-list.md` | 找 appId、应用筛选、7 天时间范围、minId 游标 |

@@ -139,6 +139,8 @@ python scripts/yd.py auth check
 | 「找一下发票下载这个应用」                      | `app list --app-name 发票下载`，回 appId 与版本              |
 | 「这个应用最近跑过吗 / 运行历史」                | `app runs --app-id <appId> --begin-date ... --end-date ...` |
 | 「机器人7号最近跑了哪些任务 / 有没有失败」            | `robot tasks --robot-client-uuid <uuid> --status error,finish` |
+| 「随便找台空闲机器人跑这个应用」                   | `job start --app-id <appId> --auto-robot`              |
+| 「机器人7号在忙，排队还是换一台」                  | 先按退出码 6 的 `dispatch_decision` 展示候选，再由用户决定 |
 | 「用影刀在机器人7号上跑 6b071a6e…，月份 2026-10」 | 干跑 → 确认 → `job start` → 回 jobUuid                   |
 | 「刚才那个任务跑完没，输出是什么」                  | `job query --job-uuid <uuid>`，回状态/耗时/inputs/outputs |
 | 「等它跑完再告诉我」                         | `job query --wait`，终态后汇报                            |
@@ -222,8 +224,8 @@ YD app list [--app-id <appId>] [--app-name 名称] [--owner 账号] [--all]
 YD app runs (--app-id <appId> | --begin-date <日期> --end-date <日期>) \
   [--min-id 0] [--size 30] [--all]
 
-YD job start --app-id <appId> (--account-name <机器人名> | --robot-group-uuid <uuid>) \
-  [--param 名称=值[:类型]]... [--params-file 参数.json] [--dry-run]
+YD job start --app-id <appId> (--auto-robot | --account-name <机器人名> | --robot-group-uuid <uuid>) \
+  [--queue-if-busy] [--param 名称=值[:类型]]... [--params-file 参数.json] [--dry-run]
 
 YD job query --job-uuid <uuid> [--wait]
 ```
@@ -365,6 +367,24 @@ YD robot tasks --direction pre --cursor-id 284065875470133295
 
 #### job start
 
+机器人选择规则：
+
+1. `--account-name`（或配置默认机器人）指定的机器人优先。
+2. 指定机器人不是 `idle`：**不自动排队、不自动改派**，返回退出码 6 的 `dispatch_decision`，包含排队选项与空闲候选列表。用户选排队时重跑并加 `--queue-if-busy`；选改派时替换 `--account-name`。
+3. 未指定机器人：用 `--auto-robot` 优先选空闲；多个空闲按该应用近期成功次数最多，否则随机。
+
+```bash
+# 自动选空闲机器人
+YD job start --app-id <appId> --auto-robot --param 月份=2026-10
+
+# 指定机器人忙碌时，先看决策
+YD job start --app-id <appId> --account-name "机器人7号@abc" --param 月份=2026-10
+
+# 用户确认排队后
+YD job start --app-id <appId> --account-name "机器人7号@abc" \
+  --queue-if-busy --param 月份=2026-10
+```
+
 ```bash
 # 先干跑，不发请求
 YD job start --app-id 6b071a6e-2e70-4610-9953-83375dc60836 \
@@ -396,7 +416,9 @@ YD job start --app-id <appId> --account-name "机器人7号@abc" --param 月份=
 | 参数                                      | 说明                                                                    |
 | --------------------------------------- | --------------------------------------------------------------------- |
 | `--app-id`（别名 `--robot-uuid`）           | **应用 uuid**，不是机器人 uuid。必填                                             |
-| `--account-name` / `--robot-group-uuid` | 二选一；都没传时用配置里的默认值，仍为空则本地拦截                                             |
+| `--account-name` / `--robot-group-uuid` | 二选一；都没传时用配置默认值，仍为空则本地拦截                                             |
+| `--auto-robot`                          | 未指定机器人时自动选空闲；不能与账号/分组同用                                             |
+| `--queue-if-busy`                       | 仅与 `--account-name` 同用；明确接受在非空闲机器人上排队                                  |
 | `--param NAME=VALUE[:TYPE]`             | 可重复；`TYPE` 取 `str/int/float/bool/file`，默认 `str`。注意分隔符是**冒号**          |
 | `--params-file <json>`                  | 参数文件：对象（`{"月份":"2026-10"}`）或 `[{name,value,type}]` 数组；可与 `--param` 叠加 |
 | `--idempotent-uuid`                     | ≤36 位；网络超时重发时防重复启动。不传就不发该字段                                           |
@@ -450,6 +472,9 @@ YD app list --app-name "订单" --format text
 
 # 3. 确认机器人（名称缺 @ 时先补全）
 YD robot info --name "机器人7号@abc" --format text
+
+# 3.1 或者交给工具自动选空闲机器人（忙碌时不会自动改派）
+YD job start --app-id <appId> --auto-robot --param 月份=2026-10 --dry-run
 
 # 4. 干跑核对参数
 YD job start --app-id <appId> --account-name "机器人7号@abc" \

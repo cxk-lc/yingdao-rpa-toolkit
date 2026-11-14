@@ -18,7 +18,7 @@
 分四层，依赖方向单向向下，入口层不直接碰 `urllib`：
 
 1. **入口层**：`scripts/yd.py`（薄壳）→ `yingdao_rpa/cli.py`（解析参数、装配依赖、兜底异常）→ `yingdao_rpa/commands/*`（一个子命令一个模块，`register()` + `run()`）。
-2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；`accounts.py` 负责机器人账号后缀补全；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。`commands/robot.py` 在名称缺 `@` 时复用 `account list` 查 `loginAccount`，再调用机器人接口。
+2. **领域封装层**：`client.py` 负责 token 生命周期（仅内存）、统一响应判定、401 刷新、429 退避；`accounts.py` 负责机器人账号后缀补全；`scheduling.py` 负责机器人调度选择（空闲、历史成功率、忙碌决策）；**不设 token 持久化模块**，跨命令通过参数/环境变量传递。`commands/robot.py` 在名称缺 `@` 时复用 `account list` 查 `loginAccount`，再调用机器人接口。
 3. **基础设施层**：`transport.py` 只做 HTTP 往返与网络异常归一化；不判断业务成功与否。
 4. **横切层**：`config.py`（四层配置合并与校验）、`errors.py`（异常体系 ↔ 退出码）、`logging_setup.py`（分级日志与脱敏）、`output.py`（stdout JSON 契约）。
 
@@ -42,6 +42,8 @@
 - **Windows 编码**：中文参数与控制台 GBK 冲突。对策：入口 `reconfigure(encoding="utf-8")`，文件读写显式 `encoding="utf-8"`。
 - **机器人名称补全**：机器人名称可能只给前缀，企业版需要 `@企业标识`。对策：先查 `account list` 取 `loginAccount`，再回退 `--suffix` / `enterpriseSuffix`；企业账号接口不可用时保留后缀回退路径，避免单点依赖。
 - **分页模型不统一**：应用列表用 page/size，应用运行记录用 `minId` 游标，机器人任务用 `cursorId + direction`。对策：三个命令各自实现翻页与去重；`--all` 遇到游标不前进或达到 `--max-pages` 必须停止并返回 warning。
+- **调度决策不能自动代替用户**：指定机器人非空闲时，自动排队或改派都可能违背用户预期。对策：`scheduling.select_robot` 只返回 `dispatch_decision`（退出码 6），由调用方询问后再用 `--queue-if-busy` 或新 `--account-name` 重跑。
+- **历史成功率查询成本**：自动选机器人需要查 4.1 历史。对策：只统计最近 5 页 × 100 条，失败时降级为随机空闲并在 `dispatch.warnings` 说明。
 - **应用运行记录时间窗**：接口限制单次查询跨度 ≤7 天，文档未写明。对策：本地校验并提示分段查询。
 - **凭据泄漏**：日志、异常、`config show` 都可能带出 secret。对策：`Config.__repr__` 与 `config show` 统一脱敏；client 只记录 path 与 requestId。
 - **长参数**：超过约 8000 字符会被服务端拒绝。对策：本地预估 JSON 长度并拦截，提示拆批或 `type=file`。
@@ -51,7 +53,7 @@
 - 运行命令：`python scripts/yd.py --help`（或 `yd --help`）
 - 测试命令：`python -m pytest -q`
 - Python 路径：`D:/Program Files/miniconda3/envs/python_3_10/python.exe`
-- 验证工具（AI 自测所需）：pytest + CLI 冒烟（`--version`、`config show`、`auth token --dry-run`、`app list/app runs --dry-run`、`robot tasks --dry-run`、`job start --dry-run`、无凭据 `auth check` 的退出码）
+- 验证工具（AI 自测所需）：pytest + CLI 冒烟（`--version`、`config show`、`auth token --dry-run`、`app list/app runs --dry-run`、`robot tasks --dry-run`、`job start --dry-run`、`job start --auto-robot --dry-run`、无凭据 `auth check` 的退出码）
 - 不依赖真实网络：client/transport 测试使用假传输对象；真实鉴权、取 token 与启动由人工验收。
 
 > 填写后请同步更新 `AGENTS.md` 的"项目信息"一节。
