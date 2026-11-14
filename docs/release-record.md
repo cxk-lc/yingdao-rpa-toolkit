@@ -3,6 +3,59 @@
 > 用途：为每个对外发布的版本留存可追溯记录（阶段五「发布子流程（可选）」的产出物）。
 > 归档位置：`docs/release-record.md`；每个版本追加一节。
 
+## v0.1.2 · 2026-11-14
+
+### 1. 版本号
+
+- 版本号：v0.1.2
+- 发布方式：立即发布（GitHub 远端）
+- 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
+- GitHub Release：https://github.com/cxk-lc/yingdao-rpa-toolkit/releases/tag/v0.1.2
+- 验收代码 commit：`9692881`（调度规则与默认自动选择）
+- tag 指向 commit：`v0.1.2` 发布提交（本记录所在 commit）
+- 是否已推送远端：是（`main` 与 `v0.1.2`）
+
+### 2. 变更摘要
+
+- 新增机器人调度规则：指定机器人优先；忙碌时返回 `dispatch_decision`（排队/空闲候选），不自动排队或改派。
+- `job start` 未指定账号/分组时默认自动选择空闲机器人；多个空闲按该应用历史成功次数最多，否则随机。
+- 新增 `--auto-robot`（显式强制自动）与 `--queue-if-busy`（确认排队）。
+- 修复 dry-run 预览：`config init --dry-run` 不写盘；text 模式优先渲染预览；headers/meta 契约补齐；`robot info --uuid` 的 `requested` 形状统一。
+- 修复配置向上查找把 `~/.yingdao/config.json` 误判为项目配置的问题。
+- 文档补充调度规则、安装态路径与输出契约；测试增至 221 项。
+
+### 3. 验证证据
+
+- 测试：`python -m pytest -q` → **221 passed**（2026-11-14）。
+- 人工验收：`docs/acceptance-checklist-v0.1.2.md` 结论「通过」，验收人「用户（发布指令确认）」，日期 2026-11-14。
+- 真实接口只读抽样：
+  - 机器人列表 16 台，其中空闲 1 台。
+  - 指定忙碌机器人返回 `specified_robot_busy`，空闲候选 1 台。
+  - 自动模式选择唯一空闲机器人，`reason=auto_only_idle`。
+  - 未实际调用 `job start`，避免产生真实运行。
+- 护栏检查：`check_project` 8/8。
+
+### 4. 已知问题
+
+- 自动化测试全部离线；真实 `job start` / `job query` 的失败终态未纳入 AI 自测，依赖人工验收覆盖。
+- 远端仓库当前为 **public**；如需私有，需在 GitHub 仓库设置中调整可见性。
+- `job start --account-name` 仍按传入值使用，不参与机器人名称的 `loginAccount` 自动补全。
+- 调度历史成功次数最多统计最近 5 页 × 100 条；查询失败时降级为随机空闲并返回 warning。
+- Skill 发布包仅含运行文件，`README/USAGE/docs/tests` 等仓库文档不在包内。
+
+### 5. 回滚指令
+
+```bash
+# 回退到上一个稳定版本
+git checkout v0.1.1
+
+# 撤销 v0.1.2 远端 tag（仅在需要撤回发布时）
+git push origin :refs/tags/v0.1.2
+
+# 撤销本地 tag
+git tag -d v0.1.2
+```
+
 ## v0.1.1 · 2026-11-09
 
 ### 1. 版本号

@@ -4,7 +4,7 @@ displayName: 影刀RPA工具包
 description: 通过影刀开放 API 触发 RPA 应用运行并查询结果，覆盖凭据配置、授权获取 token、启动应用（支持参数、优先级、幂等 uuid、干跑预览）、按 jobUuid 查询状态与轮询到终态。当用户要「用影刀/ShadowBot 跑一个应用」「触发影刀 RPA」「看这次运行结果/输出参数」「验证影刀 API 凭据是否有效」时使用。走云端开放 API，不是本地客户端操作。
 agent_created: true
 metadata:
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # 影刀 RPA 工具包
