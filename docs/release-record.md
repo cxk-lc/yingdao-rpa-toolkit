@@ -11,8 +11,10 @@
 - 发布方式：立即发布（GitHub 远端）
 - 远端仓库：`git@github.com:cxk-lc/yingdao-rpa-toolkit.git`（public）
 - GitHub Release：https://github.com/cxk-lc/yingdao-rpa-toolkit/releases/tag/v0.1.2
+- Release 资产：`yingdao-rpa-toolkit-v0.1.2.zip`（76,943 字节）
+- 资产 SHA256：`c7a2ad1870ea4f76161f8b35d6832c4b803b0f52c0fe8ea89f2d5f5a269645b4`
 - 验收代码 commit：`9692881`（调度规则与默认自动选择）
-- tag 指向 commit：`v0.1.2` 发布提交（本记录所在 commit）
+- tag 指向 commit：`c162a70`（v0.1.2 发布提交；本记录为发布后补记，仅追加资产信息）
 - 是否已推送远端：是（`main` 与 `v0.1.2`）
 
 ### 2. 变更摘要
@@ -33,6 +35,8 @@
   - 指定忙碌机器人返回 `specified_robot_busy`，空闲候选 1 台。
   - 自动模式选择唯一空闲机器人，`reason=auto_only_idle`。
   - 未实际调用 `job start`，避免产生真实运行。
+- 远端校验：`git ls-remote origin` 可见 `refs/heads/main` 与 `refs/tags/v0.1.2`。
+- Release 资产校验：从 GitHub Release 重新下载 `yingdao-rpa-toolkit-v0.1.2.zip`，SHA256 与本地白名单构建一致；压缩包内无 `tests/`、`docs/`、`AGENTS.md`、`README.md`、`USAGE.md`、`pyproject.toml` 与厂商接口文档。
 - 护栏检查：`check_project` 8/8。
 
 ### 4. 已知问题
