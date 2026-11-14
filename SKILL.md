@@ -113,7 +113,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ## 关键参数
 
 - `--app-id`（别名 `--robot-uuid`）：**应用 uuid（appId）**，不是机器人 uuid。
-- `--account-name` 或 `--robot-group-uuid`：必须且只能提供一个；都为空时任务会永久停在 `waiting`，工具已在本地拦截。
+- `--account-name` / `--robot-group-uuid` / `--auto-robot`：三者只能选一个；都为空时用配置默认值，仍为空则本地拦截。
 - `--param NAME=VALUE[:TYPE]`：可重复；`TYPE` 取 `str/int/float/bool/file`，默认 `str`。
 - `--params-file`：参数 JSON（对象，或 `{name,value,type}` 数组），适合参数很多的场景。
 - `--idempotent-uuid`：不超过 36 位；网络超时重发时避免重复启动。

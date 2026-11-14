@@ -416,7 +416,7 @@ YD job start --app-id <appId> --account-name "机器人7号@abc" --param 月份=
 | 参数                                      | 说明                                                                    |
 | --------------------------------------- | --------------------------------------------------------------------- |
 | `--app-id`（别名 `--robot-uuid`）           | **应用 uuid**，不是机器人 uuid。必填                                             |
-| `--account-name` / `--robot-group-uuid` | 二选一；都没传时用配置默认值，仍为空则本地拦截                                             |
+| `--account-name` / `--robot-group-uuid` / `--auto-robot` | 三选一；账号/分组都没传时用配置默认值，仍为空则本地拦截 |
 | `--auto-robot`                          | 未指定机器人时自动选空闲；不能与账号/分组同用                                             |
 | `--queue-if-busy`                       | 仅与 `--account-name` 同用；明确接受在非空闲机器人上排队                                  |
 | `--param NAME=VALUE[:TYPE]`             | 可重复；`TYPE` 取 `str/int/float/bool/file`，默认 `str`。注意分隔符是**冒号**          |
