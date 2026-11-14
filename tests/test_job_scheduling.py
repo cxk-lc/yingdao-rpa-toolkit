@@ -140,6 +140,15 @@ def test_auto_robot_starts_with_most_successful_idle():
     assert result["data"]["jobUuid"] == "job-1"
 
 
+def test_no_target_defaults_to_auto_selection():
+    client = FakeClient(idle=[IDLE_A], history_rows=[])
+
+    result = run_start(args(), runtime(client))
+
+    assert client.start_body["accountName"] == "a@corp"
+    assert result["data"]["dispatch"]["reason"] == "auto_only_idle"
+
+
 def test_specified_busy_robot_returns_decision_before_start():
     client = FakeClient(robot_map={"busy@corp": BUSY}, idle=[IDLE_A])
 

@@ -93,9 +93,24 @@ def test_account_and_group_are_mutually_exclusive():
         build_start_body(args(robot_group_uuid="group-1"), CONFIG)
 
 
-def test_missing_target_is_blocked_locally():
-    with pytest.raises(ParamError, match="必须提供"):
-        build_start_body(args(account_name=None), CONFIG)
+def test_explicit_account_overrides_config_group():
+    config = Config(
+        access_key_id="ak",
+        access_key_secret="sk",
+        default_robot_client_group_uuid="group-from-config",
+    )
+
+    body = build_start_body(args(account_name="robot@corp"), config)
+
+    assert body["accountName"] == "robot@corp"
+    assert "robotClientGroupUuid" not in body
+
+
+def test_missing_target_leaves_account_for_auto_selection():
+    body = build_start_body(args(account_name=None), CONFIG)
+
+    assert "accountName" not in body
+    assert "robotClientGroupUuid" not in body
 
 
 def test_default_account_from_config_is_used():

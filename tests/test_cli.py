@@ -68,14 +68,15 @@ def test_auth_check_without_credentials_returns_2(cli_workspace, capsys):
     assert "提示" in stderr
 
 
-def test_job_start_without_target_returns_2(cli_workspace, capsys, monkeypatch):
+def test_job_start_without_target_defaults_to_auto_robot(cli_workspace, capsys, monkeypatch):
     monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
     monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
 
     code, payload, _ = run_json(capsys, ["job", "start", "--app-id", "app-1", "--dry-run"])
 
-    assert code == 2
-    assert payload["error"]["type"] == "ParamError"
+    assert code == 0
+    assert payload["data"]["resolution"] == "auto-robot"
+    assert payload["data"]["followup"]["body"]["accountName"] == "<selected-account>"
 
 
 def test_job_start_dry_run_never_sends_request(cli_workspace, capsys, monkeypatch):

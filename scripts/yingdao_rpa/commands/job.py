@@ -56,12 +56,12 @@ def register(subparsers: argparse._SubParsersAction, common: argparse.ArgumentPa
         required=True,
         help="应用 uuid（即接口的 robotUuid，不是机器人 uuid）",
     )
-    start.add_argument("--account-name", help="机器人名称（与 --robot-group-uuid 二选一；省略时配合 --auto-robot）")
+    start.add_argument("--account-name", help="机器人名称（省略时按配置默认值或自动选择；与分组二选一）")
     start.add_argument("--robot-group-uuid", help="机器人分组 uuid（与 --account-name 二选一）")
     start.add_argument(
         "--auto-robot",
         action="store_true",
-        help="未指定机器人时，按空闲与历史成功次数自动选择",
+        help="显式强制自动选择机器人（未指定账号/分组时默认就是自动）",
     )
     start.add_argument(
         "--queue-if-busy",
@@ -197,17 +197,22 @@ def _resolve_target(args: argparse.Namespace, config: Config) -> tuple[str, str]
             )
         return "", ""
 
-    account = (args.account_name or config.default_account_name or "").strip()
-    group = (args.robot_group_uuid or config.default_robot_client_group_uuid or "").strip()
-    if account and group:
+    if args.account_name and args.robot_group_uuid:
         raise ParamError(
             "--account-name 与 --robot-group-uuid 互斥，只能提供一个",
-            hint="也可以清掉配置里的 defaultAccountName / defaultRobotClientGroupUuid 后重试。",
+            hint="去掉其中一个后重试。",
         )
-    if not account and not group:
+    if args.account_name and args.account_name.strip():
+        return args.account_name.strip(), ""
+    if args.robot_group_uuid and args.robot_group_uuid.strip():
+        return "", args.robot_group_uuid.strip()
+
+    account = (config.default_account_name or "").strip()
+    group = (config.default_robot_client_group_uuid or "").strip()
+    if account and group:
         raise ParamError(
-            "必须提供 --account-name、--robot-group-uuid 或 --auto-robot",
-            hint="两者都不传时任务会一直停在 waiting，因此本地直接拦截。",
+            "配置里的 defaultAccountName 与 defaultRobotClientGroupUuid 互斥",
+            hint="清掉其中一个，或用 --account-name / --robot-group-uuid / --auto-robot 显式指定。",
         )
     return account, group
 
@@ -228,7 +233,7 @@ def build_start_body(
     body: dict[str, Any] = {"robotUuid": args.app_id}
     if account:
         body["accountName"] = account
-    else:
+    elif group:
         body["robotClientGroupUuid"] = group
 
     if args.idempotent_uuid:
@@ -340,13 +345,13 @@ def _preview_auto_start(args: argparse.Namespace, runtime: Runtime) -> dict:
 
 def run_start(args: argparse.Namespace, runtime: Runtime) -> dict:
     account, _group = _resolve_target(args, runtime.config)
-    auto = bool(getattr(args, "auto_robot", False))
+    auto = bool(getattr(args, "auto_robot", False)) or not (account or _group)
     queue_if_busy = bool(getattr(args, "queue_if_busy", False))
 
     if queue_if_busy:
         if auto:
             raise ParamError(
-                "--queue-if-busy 不能与 --auto-robot 同时使用",
+                "--queue-if-busy 不能用于自动选择模式",
                 hint="自动模式只选择空闲机器人；如需排队，请指定 --account-name 并加 --queue-if-busy。",
             )
         if not account:
