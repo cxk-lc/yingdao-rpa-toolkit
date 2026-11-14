@@ -224,7 +224,7 @@ YD app list [--app-id <appId>] [--app-name 名称] [--owner 账号] [--all]
 YD app runs (--app-id <appId> | --begin-date <日期> --end-date <日期>) \
   [--min-id 0] [--size 30] [--all]
 
-YD job start --app-id <appId> (--auto-robot | --account-name <机器人名> | --robot-group-uuid <uuid>) \
+YD job start --app-id <appId> [--account-name <机器人名> | --robot-group-uuid <uuid> | --auto-robot] \
   [--queue-if-busy] [--param 名称=值[:类型]]... [--params-file 参数.json] [--dry-run]
 
 YD job query --job-uuid <uuid> [--wait]
@@ -371,7 +371,7 @@ YD robot tasks --direction pre --cursor-id 284065875470133295
 
 1. `--account-name`（或配置默认机器人）指定的机器人优先。
 2. 指定机器人不是 `idle`：**不自动排队、不自动改派**，返回退出码 6 的 `dispatch_decision`，包含排队选项与空闲候选列表。用户选排队时重跑并加 `--queue-if-busy`；选改派时替换 `--account-name`。
-3. 未指定机器人：用 `--auto-robot` 优先选空闲；多个空闲按该应用近期成功次数最多，否则随机。
+3. 未指定机器人：**默认自动**优先空闲；多个空闲按该应用近期成功次数最多，否则随机。`--auto-robot` 可显式强制自动（覆盖配置默认机器人）。
 
 ```bash
 # 自动选空闲机器人
@@ -416,8 +416,8 @@ YD job start --app-id <appId> --account-name "机器人7号@abc" --param 月份=
 | 参数                                      | 说明                                                                    |
 | --------------------------------------- | --------------------------------------------------------------------- |
 | `--app-id`（别名 `--robot-uuid`）           | **应用 uuid**，不是机器人 uuid。必填                                             |
-| `--account-name` / `--robot-group-uuid` / `--auto-robot` | 三选一；账号/分组都没传时用配置默认值，仍为空则本地拦截 |
-| `--auto-robot`                          | 未指定机器人时自动选空闲；不能与账号/分组同用                                             |
+| `--account-name` / `--robot-group-uuid` / `--auto-robot` | 三选一；账号/分组都没传时默认自动选空闲（配置默认值优先于自动） |
+| `--auto-robot`                          | 显式强制自动选择，可覆盖配置默认机器人；不能与账号/分组同用                                 |
 | `--queue-if-busy`                       | 仅与 `--account-name` 同用；明确接受在非空闲机器人上排队                                  |
 | `--param NAME=VALUE[:TYPE]`             | 可重复；`TYPE` 取 `str/int/float/bool/file`，默认 `str`。注意分隔符是**冒号**          |
 | `--params-file <json>`                  | 参数文件：对象（`{"月份":"2026-10"}`）或 `[{name,value,type}]` 数组；可与 `--param` 叠加 |

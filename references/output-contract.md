@@ -67,7 +67,7 @@
 | `account list` | `{kind:"account_list", items:[...], count, page:{total,size,page,pages}, filters, requested}` |
 | `job start` | `{kind:"job_start", jobUuid, idempotentFlag, request_id, dispatch?}`；`dispatch` 含 `accountName/statusName/reason/successCount/idleCandidates/warnings`；加 `--wait` 时多一个 `job` |
 | `job query` | `{kind:"job", jobUuid, job}` |
-| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`：`headers` 恒存在（`Accept`，有 body 时加 `Content-Type`，需 token 时加 `Authorization: Bearer <accessToken>`）；`body` 无请求体时为 `null`；`query`/`body` 默认掩码。`robot info` 无 `@` 且无 `--suffix` 时返回两段式预览（`resolution:"account-lookup"` + `followup`）；`job start --auto-robot` 返回 `resolution:"auto-robot"` + 空闲机器人查询 `request` + `<selected-account>` 占位 `followup`；`config init` 为本地写盘预览（`method:"WRITE"`、`url` 为目标路径、`body.exists` 指示是否已存在），**不创建任何文件** |
+| 任意 `--dry-run` | `{kind:"request_preview", request:{method,url,query,body,headers}}`：`headers` 恒存在（`Accept`，有 body 时加 `Content-Type`，需 token 时加 `Authorization: Bearer <accessToken>`）；`body` 无请求体时为 `null`；`query`/`body` 默认掩码。`robot info` 无 `@` 且无 `--suffix` 时返回两段式预览（`resolution:"account-lookup"` + `followup`）；`job start` 未指定账号/分组或使用 `--auto-robot` 时返回 `resolution:"auto-robot"` + 空闲机器人查询 `request` + `<selected-account>` 占位 `followup`；`config init` 为本地写盘预览（`method:"WRITE"`、`url` 为目标路径、`body.exists` 指示是否已存在），**不创建任何文件** |
 
 
 ## 4. 退出码

@@ -129,7 +129,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 | `account list [--keyword ...] [--phone ...] [--account-type basic\|senior] [--all]` | 分页查询 RPA 企业账号，支持时间范围筛选          |
 | `app list [--app-name ...] [--owner ...] [--all]`                                     | 分页查询应用列表，可用于找 `appId`            |
 | `app runs --app-id ... [--begin-date ...] [--end-date ...] [--all]`                   | 查询应用运行历史；应用与时间至少给一个，时间跨度≤7 天    |
-| `job start --app-id ... (--auto-robot \| --account-name ... \| --robot-group-uuid ...) [--queue-if-busy] ...` | 启动一次应用运行；自动选空闲机器人，忙碌时返回决策请求 |
+| `job start --app-id ... [--account-name ... \| --robot-group-uuid ... \| --auto-robot] [--queue-if-busy] ...` | 启动一次应用运行；未指定目标时自动选空闲机器人，忙碌时返回决策请求 |
 | `job query --job-uuid ... [--wait]`                                                 | 查询运行状态与输出参数                     |
 
 全局参数：`--dry-run`、`--format json|text`、`--save <file>`、`--access-token <token>`、`--debug`、`--log-file <file>`、`--timeout`。
@@ -140,7 +140,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 |---|---|
 | 指定 `--account-name` 且机器人空闲 | 直接使用该机器人 |
 | 指定机器人非空闲 | **不自动排队、不自动改派**；返回退出码 6 的 `dispatch_decision`，列出排队选项与空闲候选 |
-| 未指定机器人，使用 `--auto-robot` | 优先空闲；多个空闲按该应用历史成功次数最多，否则随机 |
+| 未指定 `--account-name` / `--robot-group-uuid` | 默认自动：优先空闲；多个空闲按该应用历史成功次数最多，否则随机（`--auto-robot` 可显式强制） |
 | 没有空闲机器人 | 返回 `no_idle_robot`，列出在线候选供用户选择排队 |
 
 ```bash

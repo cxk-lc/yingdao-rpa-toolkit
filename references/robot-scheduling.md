@@ -6,12 +6,15 @@
 2. **指定机器人非空闲**：不自动改派、不自动排队，返回退出码 6 的决策请求，列出：
    - 排队等待选项；
    - 当前空闲机器人候选列表（按该应用历史成功次数降序）。
-3. **未指定机器人**：`--auto-robot` 优先选择空闲机器人；多个空闲时优先该应用历史成功次数最多的，否则随机选一个。
+3. **未指定机器人**：默认自动选择空闲机器人；`--auto-robot` 可显式强制自动（覆盖配置默认机器人）。多个空闲时优先该应用历史成功次数最多的，否则随机选一个。
 
 ## 1. 命令
 
 ```bash
-# 自动选择空闲机器人
+# 未指定账号/分组时默认自动选择空闲机器人（--auto-robot 可显式强制）
+python scripts/yd.py job start --app-id <appId>
+
+# 显式强制自动，覆盖配置默认机器人
 python scripts/yd.py job start --app-id <appId> --auto-robot
 
 # 指定机器人；若忙碌则返回决策请求
@@ -23,9 +26,9 @@ python scripts/yd.py job start --app-id <appId> --account-name busy@corp --queue
 
 | 参数 | 说明 |
 |---|---|
-| `--auto-robot` | 未指定机器人时自动选择；不能与 `--account-name` / `--robot-group-uuid` 同用 |
+| `--auto-robot` | 显式强制自动选择，可覆盖配置默认机器人；不能与 `--account-name` / `--robot-group-uuid` 同用 |
 | `--queue-if-busy` | 仅与 `--account-name` 同用；明确接受在非空闲机器人上排队 |
-| `--account-name` | 指定机器人；省略时可用配置默认值或 `--auto-robot` |
+| `--account-name` | 指定机器人；省略时优先用配置默认值，再没有则自动选择 |
 | `--robot-group-uuid` | 走分组调度，不应用本规则 |
 
 ## 2. 指定机器人忙碌：决策请求
@@ -108,6 +111,6 @@ python scripts/yd.py job start --app-id <appId> \
 ## 5. 边界
 
 - 历史成功次数最多统计最近 5 页 × 100 条；查询失败时降级为随机空闲，并在 `dispatch.warnings` 中说明。
-- `--dry-run` 不查询机器人状态：指定机器人时只预览启动请求；`--auto-robot` 时预览「查空闲机器人 + 用 `<selected-account>` 启动」两段请求。
+- `--dry-run` 不查询机器人状态：指定机器人时只预览启动请求；未指定账号/分组或使用 `--auto-robot` 时，预览「查空闲机器人 + 用 `<selected-account>` 启动」两段请求。
 - 指定机器人离线且用户明确 `--queue-if-busy` 时允许排队，但会返回 warning：可能排队到超时。
 - 机器人 uuid 可通过 4.4 列表获取；本工具暂未提供独立的 `robot list` 命令。

@@ -125,7 +125,8 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 - `app list`：`--app-id` / `--app-name`（模糊）/ `--owner`；`--size` 最大 100，`--all` 按页码翻页。
 - `app runs`：`--app-id` 与时间范围至少给一个；只给时间时必须同时给起止；时间跨度最多 7 天；`--all` 按 `minId` 游标翻页。
 - `robot tasks`：`--app-id`（接口字段 robotUuid）/ `--robot-client-uuid` / `--status` / 触发时间；`--all` 沿 `next`/`pre` 游标翻页。
-- `job start --auto-robot`：未指定机器人时优先空闲；多个空闲按该应用历史成功次数最多，否则随机；`--queue-if-busy` 仅与 `--account-name` 同用。
+- `job start`：未指定 `--account-name` / `--robot-group-uuid` 时默认自动选空闲机器人；`--auto-robot` 可显式强制自动（覆盖配置默认机器人）。
+- `job start` 自动模式：多个空闲按该应用历史成功次数最多，否则随机；`--queue-if-busy` 仅与 `--account-name` 同用。
 - `--dry-run`（全局）：只构造并输出预览，**不发请求、不写盘**；`config init --dry-run` 只显示目标路径与 `exists`，不会创建文件。
 - `--show-secrets`（全局）：仅在 `--dry-run` 预览中生效，放开密钥原文；默认掩码，非预览场景传了也不改变行为。
 
@@ -164,7 +165,7 @@ PY="D:/Program Files/miniconda3/envs/python_3_10/python.exe"
 ## 关键事实与易错点
 
 - `job start` 的 `robotUuid` 是 **应用 uuid**（appId），不是机器人 uuid。
-- `job start --auto-robot` 走 4.4 取空闲机器人、4.1 统计该应用近期成功次数；非空闲指定机器人返回退出码 6 的 `dispatch_decision`，需用户选择排队或改派。
+- `job start` 未指定账号/分组时默认自动选机器人（走 4.4 空闲列表、4.1 近期成功次数）；指定机器人非空闲返回退出码 6 的 `dispatch_decision`，需用户选择排队或改派。
 - `robot info` 的 `accountName` 必须是完整企业账号；`status` 为 `connected/idle/allocated/running/offline`，`online` 与 `idle` 是工具补充的派生字段。
 - `robot info --name` 不带 `@` 时会先查企业账号（最多 3 页 × 100 条），匹配 `loginAccount` 的 @ 前缀或账号 `name`；多个匹配会要求改用完整 `loginAccount`。
 - `accountName` 与 `robotClientGroupUuid` 互斥；两者都缺时任务不会执行，只会排队到超时。
