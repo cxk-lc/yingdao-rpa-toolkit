@@ -108,6 +108,67 @@ def test_job_start_dry_run_never_sends_request(cli_workspace, capsys, monkeypatc
     assert payload["meta"]["dry_run"] is True
 
 
+def test_job_start_auto_robot_dry_run_previews_lookup(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        ["job", "start", "--app-id", "app-1", "--auto-robot", "--dry-run"],
+    )
+
+    assert code == 0
+    data = payload["data"]
+    assert data["resolution"] == "auto-robot"
+    assert data["request"]["url"].endswith("/oapi/dispatch/v2/client/list")
+    assert data["request"]["body"] == {"status": "idle", "page": 1, "size": 100}
+    assert data["followup"]["body"]["accountName"] == "<selected-account>"
+
+
+def test_job_start_auto_robot_conflicts_with_account(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        [
+            "job",
+            "start",
+            "--app-id",
+            "app-1",
+            "--auto-robot",
+            "--account-name",
+            "robot@corp",
+            "--dry-run",
+        ],
+    )
+
+    assert code == 2
+    assert payload["error"]["type"] == "ParamError"
+
+
+def test_job_start_queue_if_busy_with_group_is_rejected(cli_workspace, capsys, monkeypatch):
+    monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")
+
+    code, payload, _ = run_json(
+        capsys,
+        [
+            "job",
+            "start",
+            "--app-id",
+            "app-1",
+            "--robot-group-uuid",
+            "group-1",
+            "--queue-if-busy",
+            "--dry-run",
+        ],
+    )
+
+    assert code == 2
+    assert payload["error"]["type"] == "ParamError"
+
+
 def test_dry_run_meta_keeps_full_contract_keys(cli_workspace, capsys, monkeypatch):
     monkeypatch.setenv("YD_ACCESS_KEY_ID", "ak")
     monkeypatch.setenv("YD_ACCESS_KEY_SECRET", "sk")

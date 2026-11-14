@@ -271,6 +271,7 @@ def render_text(payload: dict[str, Any]) -> str:
 
     if command.startswith("job"):
         job = data.get("job") or {}
+        dispatch = data.get("dispatch") or {}
         if job:
             parts = [
                 f"jobUuid={job.get('jobUuid') or data.get('jobUuid') or '-'}",
@@ -281,11 +282,26 @@ def render_text(payload: dict[str, Any]) -> str:
                 parts.append(f"应用={job['robotName']}")
             if job.get("robotClientName"):
                 parts.append(f"机器人={job['robotClientName']}")
+            if dispatch:
+                parts.append(
+                    f"调度={dispatch.get('accountName') or '-'}"
+                    f"({dispatch.get('statusName') or dispatch.get('status') or '-'})"
+                )
             if job.get("remark"):
                 parts.append(f"remark={job['remark']}")
             return "  ".join(parts)
         if data.get("jobUuid"):
-            return f"jobUuid={data['jobUuid']}  idempotent={data.get('idempotentFlag')}"
+            parts = [
+                f"jobUuid={data['jobUuid']}",
+                f"idempotent={data.get('idempotentFlag')}",
+            ]
+            if dispatch:
+                parts.append(
+                    f"调度={dispatch.get('accountName') or '-'}"
+                    f"({dispatch.get('statusName') or dispatch.get('status') or '-'})"
+                    f"/{dispatch.get('reason') or '-'}"
+                )
+            return "  ".join(parts)
 
     return json.dumps(payload, ensure_ascii=False, indent=2)
 

@@ -18,6 +18,7 @@ from ..config import Config
 from ..errors import JobFailedError, ParamError, PollTimeoutError
 from ..logging_setup import get_logger
 from ..runtime import Runtime
+from ..scheduling import ROBOT_LIST_PATH, select_robot
 
 START_PATH = "/oapi/dispatch/v2/job/start"
 QUERY_PATH = "/oapi/dispatch/v2/job/query"
@@ -55,8 +56,18 @@ def register(subparsers: argparse._SubParsersAction, common: argparse.ArgumentPa
         required=True,
         help="应用 uuid（即接口的 robotUuid，不是机器人 uuid）",
     )
-    start.add_argument("--account-name", help="机器人名称（与 --robot-group-uuid 二选一）")
+    start.add_argument("--account-name", help="机器人名称（与 --robot-group-uuid 二选一；省略时配合 --auto-robot）")
     start.add_argument("--robot-group-uuid", help="机器人分组 uuid（与 --account-name 二选一）")
+    start.add_argument(
+        "--auto-robot",
+        action="store_true",
+        help="未指定机器人时，按空闲与历史成功次数自动选择",
+    )
+    start.add_argument(
+        "--queue-if-busy",
+        action="store_true",
+        help="指定机器人非空闲时允许排队；默认返回决策请求，由调用方询问用户",
+    )
     start.add_argument(
         "--param",
         action="append",
@@ -177,6 +188,15 @@ def _poll_settings(args: argparse.Namespace, config: Config) -> tuple[int, int]:
 
 
 def _resolve_target(args: argparse.Namespace, config: Config) -> tuple[str, str]:
+    auto = bool(getattr(args, "auto_robot", False))
+    if auto:
+        if args.account_name or args.robot_group_uuid:
+            raise ParamError(
+                "--auto-robot 不能与 --account-name / --robot-group-uuid 同时使用",
+                hint="自动模式会自行选择空闲机器人；如需指定目标，请去掉 --auto-robot。",
+            )
+        return "", ""
+
     account = (args.account_name or config.default_account_name or "").strip()
     group = (args.robot_group_uuid or config.default_robot_client_group_uuid or "").strip()
     if account and group:
@@ -186,14 +206,22 @@ def _resolve_target(args: argparse.Namespace, config: Config) -> tuple[str, str]
         )
     if not account and not group:
         raise ParamError(
-            "必须提供 --account-name 或 --robot-group-uuid",
+            "必须提供 --account-name、--robot-group-uuid 或 --auto-robot",
             hint="两者都不传时任务会一直停在 waiting，因此本地直接拦截。",
         )
     return account, group
 
 
-def build_start_body(args: argparse.Namespace, config: Config) -> dict[str, Any]:
+def build_start_body(
+    args: argparse.Namespace,
+    config: Config,
+    *,
+    resolved_account: str | None = None,
+) -> dict[str, Any]:
     account, group = _resolve_target(args, config)
+    if resolved_account is not None:
+        account = resolved_account
+        group = ""
     _check_range(args.wait_timeout_seconds, "--wait-timeout-seconds")
     _check_range(args.run_timeout, "--run-timeout")
 
@@ -273,20 +301,80 @@ def _split_failure(job: dict[str, Any], job_uuid: str) -> None:
 
 
 # ------------------------------------------------------------------ 命令体
+def _preview_start(body: dict[str, Any], runtime: Runtime) -> dict:
+    return {
+        "data": {
+            "kind": "request_preview",
+            "request": runtime.client.preview(
+                "POST", START_PATH, body=body, show_secrets=runtime.show_secrets
+            ),
+        },
+        "meta": {"base_url": runtime.config.base_url, "dry_run": True},
+    }
+
+
+def _preview_auto_start(args: argparse.Namespace, runtime: Runtime) -> dict:
+    base_body = build_start_body(args, runtime.config, resolved_account="")
+    followup_body = dict(base_body)
+    followup_body["accountName"] = "<selected-account>"
+    return {
+        "data": {
+            "kind": "request_preview",
+            "resolution": "auto-robot",
+            "request": runtime.client.preview(
+                "POST",
+                ROBOT_LIST_PATH,
+                body={"status": "idle", "page": 1, "size": 100},
+                show_secrets=runtime.show_secrets,
+            ),
+            "followup": {
+                "method": "POST",
+                "url": runtime.config.base_url + START_PATH,
+                "body": followup_body,
+            },
+            "requested": {"mode": "auto", "queueIfBusy": False},
+        },
+        "meta": {"base_url": runtime.config.base_url, "dry_run": True},
+    }
+
+
 def run_start(args: argparse.Namespace, runtime: Runtime) -> dict:
-    body = build_start_body(args, runtime.config)
+    account, _group = _resolve_target(args, runtime.config)
+    auto = bool(getattr(args, "auto_robot", False))
+    queue_if_busy = bool(getattr(args, "queue_if_busy", False))
+
+    if queue_if_busy:
+        if auto:
+            raise ParamError(
+                "--queue-if-busy 不能与 --auto-robot 同时使用",
+                hint="自动模式只选择空闲机器人；如需排队，请指定 --account-name 并加 --queue-if-busy。",
+            )
+        if not account:
+            raise ParamError("--queue-if-busy 只能与 --account-name 一起使用")
 
     if runtime.dry_run:
-        return {
-            "data": {
-                "kind": "request_preview",
-                "request": runtime.client.preview(
-                    "POST", START_PATH, body=body, show_secrets=runtime.show_secrets
-                ),
-            },
-            "meta": {"base_url": runtime.config.base_url, "dry_run": True},
-        }
+        if auto:
+            return _preview_auto_start(args, runtime)
+        return _preview_start(build_start_body(args, runtime.config), runtime)
 
+    dispatch: dict[str, Any] | None = None
+    if auto:
+        dispatch = select_robot(runtime.client, args.app_id)
+        account = dispatch["accountName"]
+    elif account:
+        dispatch = select_robot(
+            runtime.client,
+            args.app_id,
+            account_name=account,
+            queue_if_busy=queue_if_busy,
+        )
+        account = dispatch["accountName"]
+
+    body = build_start_body(
+        args,
+        runtime.config,
+        resolved_account=account if dispatch else None,
+    )
     payload = runtime.client.request("POST", START_PATH, body=body)
     data = payload.get("data") or {}
     job_uuid = data.get("jobUuid")
@@ -296,6 +384,8 @@ def run_start(args: argparse.Namespace, runtime: Runtime) -> dict:
         "idempotentFlag": data.get("idempotentFlag"),
         "request_id": payload.get("requestId"),
     }
+    if dispatch:
+        result["dispatch"] = dispatch
 
     if args.wait:
         if not job_uuid:
