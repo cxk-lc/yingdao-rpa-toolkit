@@ -11,6 +11,7 @@ import pytest
 
 from yingdao_rpa.config import (
     Config,
+    find_project_config,
     load_config,
     require_credentials,
     resolve_config_target,
@@ -59,6 +60,12 @@ def test_user_config_is_last_resort(tmp_path, isolated_user_config):
 
     assert config.access_key_id == "from-user"
     assert config.source == "user"
+
+
+def test_project_search_does_not_treat_user_config_as_project(tmp_path, isolated_user_config):
+    write(isolated_user_config, {"accessKeyId": "from-user"})
+
+    assert find_project_config(tmp_path) is None
 
 
 def test_base_url_validation_rejects_path(tmp_path, isolated_user_config):

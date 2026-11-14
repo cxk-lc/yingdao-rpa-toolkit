@@ -75,11 +75,19 @@ class Config:
 
 
 def find_project_config(start: Path | None = None) -> Path | None:
-    """从 start 向上逐级查找 `.yingdao/config.json`。"""
+    """从 start 向上逐级查找 `.yingdao/config.json`。
+
+    用户级配置位于 `~/.yingdao/config.json`，不能在向上查找时被误判为项目配置；
+    否则从用户目录下的任意子目录执行都会把用户配置标成 project。
+    """
     current = (start or Path.cwd()).resolve()
+    user_path = user_config_path().resolve()
+    home = Path.home().resolve()
     for _ in range(MAX_UPWARD_LEVELS):
+        if current == home:
+            break
         candidate = current / CONFIG_DIRNAME / CONFIG_FILENAME
-        if candidate.is_file():
+        if candidate.is_file() and candidate.resolve() != user_path:
             return candidate
         if current.parent == current:
             break
